@@ -14,7 +14,7 @@ export default (app) => {
   }
   app.use(morgan("combined"));
 
-  const allowedOrigins = ["https://festac-project.vercel.app/"]
+  const allowedOrigins = ["https://festac-project.vercel.app/", "http://localhost:3000", "https://new-festac-website.onrender.com"]
 
   //enable CORS for all origins
   app.use(cors({ origin: allowedOrigins, credentials: true}));
