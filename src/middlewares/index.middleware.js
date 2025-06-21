@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import indexRoute from "../routes/index.route.js";
+import { errorHandler } from "./errorHandler.middleware.js"
 
 export default (app) => {
   //dev logging
@@ -13,8 +14,10 @@ export default (app) => {
   }
   app.use(morgan("combined"));
 
+  const allowedOrigins = ["https://festac-project.vercel.app/"]
+
   //enable CORS for all origins
-  app.use(cors({ origin: "*", credentials: true})); //replace * with specific origin for production
+  app.use(cors({ origin: allowedOrigins, credentials: true}));
 
   //set secure HTTP headers
   app.use(helmet());
@@ -28,4 +31,6 @@ export default (app) => {
 
   //mount routes
   app.use(indexRoute);
+
+  app.use(errorHandler);
 };

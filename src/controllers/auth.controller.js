@@ -9,8 +9,64 @@ import {
 } from "../utils/dataCrypto.util.js";
 import {
   USER_TYPES
-} from "../utils/user.util.js";
+} from "../configs/constants.config.js";
 
+
+//Create Admin
+const createSuperAdmin = async (req, res) => {
+  const {
+    body
+  } = req;
+  body.email = body.email.toLowerCase();
+  
+  //assign default password if passsword key is missing
+  if (!body.password) body.password = "user";
+
+  //Check if email and/or phone number already exists
+  const existingUser = await getUser({
+    $or: [{
+      email: body.email
+    }, {
+      phoneNumber: body.phoneNumber
+    }]
+  });
+  if (existingUser) {
+    let message = "";
+    if (existingUser.email === body.email) {
+      message = "Email already exists";
+    }
+    if (existingUser.phoneNumber === body.phoneNumber) {
+      message = message ? "Both email and password already exists" : "Phone number already exists"
+    }
+  }
+
+  //hash password
+  const hashedPassword = await encryptData(body.password);
+
+  //create new admin
+  const newSuperAdmin = await createUser({
+    ...body,
+    password: hashedPassword,
+    role: USER_TYPES.SUPERADMIN
+  });
+
+  //create a token
+  const token = generateUserToken(newSuperAdmin);
+  //return created token as cookie to user
+  res.cookie("Token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    // sameSite: "strict",
+    maxAge: 604800000,
+  })
+
+  return res.status(201).json({
+    success: true,
+    message: "User successfully created",
+    data: newSuperAdmin,
+  });
+
+}
 
 //Create Admin
 const createAdmin = async (req, res) => {
@@ -19,7 +75,8 @@ const createAdmin = async (req, res) => {
   } = req;
   body.email = body.email.toLowerCase();
   
-  if (!body.password) body.password = "user";
+  //assign default password if password key is missing
+  // if (!body.password) body.password = "user";
 
   //Check if email and/or phone number already exists
   const existingUser = await getUser({
@@ -55,7 +112,7 @@ const createAdmin = async (req, res) => {
   res.cookie("Token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    // sameSite: "strict",
     maxAge: 604800000,
   })
 
@@ -63,7 +120,6 @@ const createAdmin = async (req, res) => {
     success: true,
     message: "User successfully created",
     data: newAdmin,
-    // accessToken: token,
   });
 
 }
@@ -102,7 +158,7 @@ const login = async (req, res) => {
   res.cookie("Token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    // sameSite: "strict",
     maxAge: 604800000,
   });
 
@@ -131,4 +187,4 @@ const logout = async(req, res) => {
 }
 
 
-export { createAdmin, login, logout };
+export { createSuperAdmin, createAdmin, login, logout };

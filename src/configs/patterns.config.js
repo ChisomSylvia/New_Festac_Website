@@ -1,7 +1,3 @@
-const USER_TYPES = {
-  ADMIN: "Admin",
-}
-
 const PASSWORD_PATTERN = new RegExp(
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,30}$/
 );
@@ -9,4 +5,7 @@ const PASSWORD_PATTERN = new RegExp(
 const PHONENO_PATTERN = new RegExp(/^(?:\+?234|0)?[789]\d{9}$/);
 
 
-export { USER_TYPES, PASSWORD_PATTERN, PHONENO_PATTERN };
+export {
+  PASSWORD_PATTERN,
+  PHONENO_PATTERN
+};

@@ -1,3 +1,4 @@
+import { USER_TYPES } from "../configs/constants.config.js";
 import { getAllUsers, getUser, updateUser, deleteUser } from "../services/user.service.js";
 
 export const getAllUsersCtrl = async (req, res) => {
@@ -45,6 +46,8 @@ export const updateUserCtrl = async (req, res) => {
   const query = {
     _id: req.params.id
   };
+  const userId = req.user._id;
+  const userType = req.user.role;
 
   const existingUser = await getUser(query);
   if (!existingUser) {
@@ -52,6 +55,15 @@ export const updateUserCtrl = async (req, res) => {
       success: false,
       message: "User with such Id does not exist",
     });
+  }
+
+  if (userType === USER_TYPES.ADMIN) {
+    if (existingUser._id.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized access",
+      })
+    }
   }
 
   const updatedUser = await updateUser(query, body);
@@ -67,6 +79,8 @@ export const deleteUserCtrl = async (req, res) => {
   const query = {
     _id: req.params.id
   };
+  const userId = req.user._id;
+  const userType = req.user.role;
 
   const user = await getUser(query);
   if (!user) {
@@ -74,6 +88,15 @@ export const deleteUserCtrl = async (req, res) => {
       success: false,
       message: "User not found or already deleted!",
     });
+  }
+
+  if (userType === USER_TYPES.ADMIN) {
+    if (user._id.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized access",
+      })
+    }
   }
 
   //delete intern from db

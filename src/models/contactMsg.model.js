@@ -13,10 +13,9 @@ const contactMsgSchema = new Schema(
       type: String,
       required: true,
       trim: true,
-      unique: true,
     },
 
-    subject: {
+    phoneNumber: {
       type: String,
       required: true,
       trim: true,
@@ -26,6 +25,7 @@ const contactMsgSchema = new Schema(
       type: String,
       required: true,
       trim: true,
+      maxlength: 100,
     },
 
   },

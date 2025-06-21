@@ -1,5 +1,5 @@
 import { Schema, model } from "mongoose";
-import { USER_TYPES } from "../utils/user.util.js";
+import { USER_TYPES } from "../configs/constants.config.js";
 
 const userSchema = new Schema(
   {

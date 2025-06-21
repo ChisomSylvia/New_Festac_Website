@@ -20,11 +20,11 @@ export const createMsgCtrl = async (req, res) => {
   const {
     fullName,
     email,
-    subject,
+    phoneNumber,
     message
   } = newMessage;
 
-  const emailResult = await sendNotificationEmail(fullName, email, subject, message);
+  const emailResult = await sendNotificationEmail(fullName, email, phoneNumber, message);
   if (!emailResult.success) {
     console.error("Email notification failed", emailResult.message);
     return res.status(500).json({

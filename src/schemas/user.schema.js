@@ -1,15 +1,7 @@
 import Joi from "joi";
-import { PASSWORD_PATTERN, PHONENO_PATTERN } from "../utils/user.util.js";
-
-// const phoneNoPattern = new RegExp(/^(?:\+?234|0)?[789]\d{9}$/);
-
-// const passwordPattern = new RegExp(
-//   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,30}$/
-// );
+import { PASSWORD_PATTERN, PHONENO_PATTERN } from "../configs/patterns.config.js";
 
 //Sign up schema
-
-
 const signUpSchema = Joi.object({
   name: Joi.string().trim().required(),
   email: Joi.string().trim().email().lowercase().required(),

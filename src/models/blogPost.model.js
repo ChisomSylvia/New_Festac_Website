@@ -1,5 +1,5 @@
 import { Schema, model } from "mongoose";
-import { TAGS, STATUS } from "../utils/blog.util.js";
+import { TAGS, STATUS } from "../configs/constants.config.js";
 
 const blogPostSchema = new Schema(
   {
@@ -7,16 +7,21 @@ const blogPostSchema = new Schema(
       type: String,
       required: true,
       trim: true,
+      unique: true,
+    },
+
+    titleLower: {
+      type: String,
+      required: true,
+      unique: true,
+      // index: {
+      //   name: "titleLower_index"
+      // },
     },
 
     slug: {
       type: String,
       unique: true,
-    },
-
-    content: {
-      type: String,
-      required: true,
     },
 
     excerpt: {
@@ -25,11 +30,17 @@ const blogPostSchema = new Schema(
       maxlength: 300,
     },
 
-    author: {
-      type: Schema.Types.ObjectId,
-      ref: "user",
+    content: {
+      type: String,
       required: true,
+      trim: true,
     },
+
+    // author: {
+    //   type: Schema.Types.ObjectId,
+    //   ref: "user",
+    //   required: true,
+    // },
 
     featuredImage: {
       url: { type: String, default: null },
@@ -56,20 +67,35 @@ const blogPostSchema = new Schema(
     },
 
     readTime: {
-      type: Number,
+      type: String,
       default: 1,
     },
 
-    views: {
-      type: Number,
-      default: 0,
-    },
+    // views: {
+    //   type: Number,
+    //   default: 0,
+    // },
+
   },
   {
     versionKey: false,
     timestamps: true,
   }
 );
+
+// blogPostSchema.index({
+//   titleLower: 1
+// });
+
+blogPostSchema.index({ status: 1 });
+blogPostSchema.index({ tags: 1 });
+blogPostSchema.index({ status: 1, tags: 1, publishedAt: -1 });
+
+blogPostSchema.index({
+  title: "text",
+  excerpt: "text",
+  content: "text"
+})
 
 const BlogPostModel = new model("blog-post", blogPostSchema);
 export default BlogPostModel;
