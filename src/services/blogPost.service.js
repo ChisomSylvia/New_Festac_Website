@@ -296,6 +296,10 @@ export const updatePost = async (query, updateData, file, user) => {
       }
     }
 
+    if (!postData.title) {
+      postData.title = existingPost.title
+    }
+
     //update excerpt if present
     if (postData.excerpt) {
       const trimmed = postData.excerpt.trim().replace(/\.\.\.$/, "");
