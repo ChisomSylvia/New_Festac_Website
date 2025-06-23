@@ -6,6 +6,7 @@ config();
 import express from "express";
 const app = express();
 
+
 //connect to database
 import connectToDb from "./configs/db.config.js";
 

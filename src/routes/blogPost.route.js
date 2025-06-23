@@ -13,38 +13,73 @@ import {
   createPostSchema,
   getAllPostsSchema,
   getPostSchema,
-  updatePostSchema
+  updatePostSchema,
 } from "../schemas/blogPost.schema.js";
 import { authenticate, optionalAuth } from "../middlewares/auth.middleware.js";
-import remapParamToQuery from "../middlewares/remap.middleware.js";
+// import remapParamToQuery from "../middlewares/remap.middleware.js";
 import { USER_TYPES } from "../configs/constants.config.js";
 
 
 //create post
-router.post("/", authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]), validate({ body: createPostSchema }), upload.single("featuredImage"), createPostCtrl);
+router.post(
+  "/",
+  authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]),
+  upload.single("featuredImage"),
+  validate({
+    body: createPostSchema,
+  }),
+  createPostCtrl
+);
+
 
 //get all posts with selected queries
-router.get("/", optionalAuth, validate({
-  query: getAllPostsSchema
-}), getAllPostsCtrl);
+router.get(
+  "/",
+  optionalAuth,
+  validate({
+    query: getAllPostsSchema,
+  }),
+  getAllPostsCtrl
+);
 
-//get post by id
-router.get("/:id", authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]), validate({
-  params: getPostSchema
-}), remapParamToQuery("id"), getPostCtrl);
 
-//get post by slug
-router.get("/slug/:slug", optionalAuth, validate({
-  params: getPostSchema
-}), remapParamToQuery("slug"), getPostCtrl);
+//get post by id (admin access only)
+router.get(
+  "/:id",
+  authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]),
+  validate({
+    params: getPostSchema,
+  }),
+  getPostCtrl
+);
+
+//get post by slug (public access)
+router.get(
+  "/slug/:slug",
+  optionalAuth,
+  validate({
+    params: getPostSchema,
+  }),
+  getPostCtrl
+);
+
 
 //update post
-router.patch("/:id", authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]), validate({
-  body: updatePostSchema
-}), upload.single("featuredImage"), updatePostCtrl);
+router.patch(
+  "/update/:id",
+  authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]),
+  upload.single("featuredImage"),
+  validate({
+    body: updatePostSchema,
+  }),
+  updatePostCtrl
+);
 
 //delete post
-router.delete("/:id", authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]), deletePostCtrl);
-
+router.delete(
+  "/:id",
+  authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]),
+  deletePostCtrl
+);
 
 export default router;

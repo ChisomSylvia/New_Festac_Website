@@ -7,10 +7,7 @@ const validate = (schemas) => (req, res, next) => {
 
   for (const key in schemas) {
     if (schemas[key]) {
-      const {
-        error,
-        value
-      } = schemas[key].validate(toValidate[key], {
+      const { error, value } = schemas[key].validate(toValidate[key], {
         abortEarly: false,
         stripUnknown: true,
         convert: true
@@ -21,37 +18,23 @@ const validate = (schemas) => (req, res, next) => {
           field: detail.path.join("."),
           message: detail.message,
         }));
-        return res.status(403).json({
+
+        return res.status(400).json({
           success: false,
           message: "Validation failed",
           errors: formattedErrors,
         });
       }
 
-      req[key] = value;
+      // req[key] = value;
+      // req[`validated${key.charAt(0).toUpperCase() + key.slice(1)}`] = value;
+      req[`validated${capitalize(key)}`] = value;
     }
   }
   next();
 }
 
+const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
 
 export default validate;
-
-
-// const validate = (schema) => {
-//   return (req, res, next) => {
-//     const { error, value } = schema.validate(req.body);
-
-//     if (error) {
-//       return res.status(403).json({
-//         success: false,
-//         message: error.details[0].message,
-//       });
-//     }
-
-//     req.body = value;
-//     next();
-//   }
-// }
-
-// export default validate;

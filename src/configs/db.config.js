@@ -20,7 +20,7 @@ const connectToDb = async () => {
     console.log("Indexes synced");
 
     // //remove index
-    // await ContactMsgModel.collection.dropIndex("email_1");
+    // await BlogPostModel.collection.dropIndex("tags_1");
     // console.log("index dropped");
     
 

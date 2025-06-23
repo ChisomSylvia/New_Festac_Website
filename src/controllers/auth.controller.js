@@ -15,7 +15,7 @@ import {
 //Create Admin
 const createSuperAdmin = async (req, res) => {
   const {
-    body
+    validatedBody: body
   } = req;
   body.email = body.email.toLowerCase();
   
@@ -71,7 +71,7 @@ const createSuperAdmin = async (req, res) => {
 //Create Admin
 const createAdmin = async (req, res) => {
   const {
-    body
+    validatedBody: body
   } = req;
   body.email = body.email.toLowerCase();
   
@@ -128,9 +128,8 @@ const createAdmin = async (req, res) => {
 //Login Admin
 const login = async (req, res) => {
   const {
-    body
+   validatedBody: body
   } = req;
-  body.email = body.email.toLowerCase();
 
   //validate email
   const user = await getUser({
