@@ -48,36 +48,6 @@ export const getAllPostsCtrl = async (req, res, next) => {
   }
 };
 
-// //get all posts controller
-// export const getAllPostsCtrl = async (req, res, next) => {
-//   try {
-//     // const { validatedQuery: query } = req;
-//     const { validatedQuery: validatedParams } = req;
-
-//     const user = req.user || null;
-
-//     //decide if admin-level access should apply
-//     const isAdmin =
-//       user &&
-//       (user.role === USER_TYPES.ADMIN || user.role === USER_TYPES.SUPERADMIN);
-//     const userId = user ? user._id : null;
-
-//     //call the service function
-//     const posts = await getAllPosts(validatedParams, userId, isAdmin);
-
-//     return res.status(200).json({
-//       success: true,
-//       message: `Found ${posts.blogPosts.length} blog posts`,
-//       data: posts.blogPosts,
-//       pagination: posts.pagination,
-//       filters: posts.appliedFilters,
-//     });
-//   } catch (error) {
-//     console.error("getAllPostsCtrl Error:", error.message);
-//     next(error);
-//   }
-// };
-
 //get post by ID or slug
 export const getPostCtrl = async (req, res, next) => {
   try {
@@ -109,13 +79,13 @@ export const updatePostCtrl = async (req, res, next) => {
       });
     }
 
-    const { user } = req;
+    // const { user } = req;
     const query = {
       _id: req.params.id,
     };
     const { file } = req;
 
-    const updatedPost = await updatePost(query, body, file, user);
+    const updatedPost = await updatePost(query, body, file);
 
     return res.status(200).json({
       success: true,
@@ -128,16 +98,21 @@ export const updatePostCtrl = async (req, res, next) => {
   }
 };
 
-export const deletePostCtrl = async (req, res) => {
-  const query = {
-    _id: req.params.id,
-  };
-
-  const delPost = await deletePost(query);
-
-  return res.status(200).json({
-    success: true,
-    message: "Blog post deleted successfully",
-    data: delPost,
-  });
+export const deletePostCtrl = async (req, res, next) => {
+  try {
+    const query = {
+      _id: req.params.id,
+    };
+  
+    const delPost = await deletePost(query);
+  
+    return res.status(200).json({
+      success: true,
+      message: "Blog post deleted successfully",
+      data: delPost,
+    });
+  } catch (error) {
+    console.error("deletePostCtrl Error:", error.message);
+    next(error);
+  }
 };

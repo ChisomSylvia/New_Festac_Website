@@ -89,4 +89,10 @@ const updatePostSchema = Joi.object({
     .required(),
 });
 
-export { createPostSchema, getAllPostsSchema, getPostSchema, updatePostSchema };
+//get post schema
+const deletePostSchema = Joi.object({
+  _id: Joi.string().hex().length(24), // MongoDB ObjectId format
+  id: Joi.string().hex().length(24),
+}).xor("_id", "id");
+
+export { createPostSchema, getAllPostsSchema, getPostSchema, updatePostSchema, deletePostSchema };

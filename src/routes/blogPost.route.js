@@ -14,6 +14,7 @@ import {
   getAllPostsSchema,
   getPostSchema,
   updatePostSchema,
+  deletePostSchema,
 } from "../schemas/blogPost.schema.js";
 import { authenticate, optionalAuth } from "../middlewares/auth.middleware.js";
 // import remapParamToQuery from "../middlewares/remap.middleware.js";
@@ -77,8 +78,11 @@ router.patch(
 
 //delete post
 router.delete(
-  "/:id",
+  "/delete/:id",
   authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]),
+  validate({
+    params: deletePostSchema,
+  }),
   deletePostCtrl
 );
 

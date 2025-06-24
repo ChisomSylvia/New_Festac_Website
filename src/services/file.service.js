@@ -1,45 +1,60 @@
 import cloudinary from "../libs/cloudinary.lib.js";
+import { AppError } from "../utils/appError.util.js";
 
 //extracts url and publicId from cloudinary upload
 export const formatCloudinaryFile = (file) => {
-  if(!file) return null;
+  if (!file) return null;
 
   console.log("File service", file);
   console.log("Uploading file at path:", file.path);
 
-  // const versionlessUrl = `https://res.cloudinary.com/${process.env.CLOUD_NAME}/image/upload/${file.filename}`;
+  const url = file?.path
+    ? `${file?.path}?v=${Date.now()}`
+    : file?.secure_url || null;
 
-  // return {
-  //   url: `${versionlessUrl}?v=${Date.now()}`, // ✅ unversioned + cache busting
-  //   publicId: file.filename,
-  // };
+  const publicId = file?.filename || file?.public_id || null;
 
-  return {
-    url: `${file?.path}?v=${ Date.now() }` || file?.secure_url || null,
-    publicId: file?.filename || file?.public_id || null,
-  }
+  return { url, publicId };
 };
-
 
 //update image
 export const handleImageUpdate = async (file, existingImage) => {
   console.log("Incoming file in handleImageUpdate:", file);
 
-  if (file && existingImage?.publicId) {
-    await deleteImage(existingImage.publicId);
+  if (!file) return existingImage;
+
+  try {
+    //small delay to let Cloudinary finish processing overwrite
+    await new Promise((resolve) => setTimeout(resolve, 3000)); // wait 3s
+
+    return formatCloudinaryFile(file);
+  } catch (error) {
+    console.error("handleImageUpdate failed:", err.message);
+    throw new AppError("Image update failed", 500);
   }
-
-    // 🌐 Small delay to let Cloudinary finish processing overwrite
-    if (file) {
-      await new Promise((resolve) => setTimeout(resolve, 3000)); // wait 3s
-    }
-
-  return file ? formatCloudinaryFile(file) : existingImage;
 };
 
+// export const handleImageUpdate = async (file, existingImage) => {
+//   console.log("Incoming file in handleImageUpdate:", file);
 
+//   if (file && existingImage?.publicId) {
+//     try {
+//       await deleteImage(existingImage.publicId);
+//     } catch (error) {
+//       console.error("Failed to delete old Cloudinary image:", error.message);
+//     }
+//   }
+
+//   // 🌐 Small delay to let Cloudinary finish processing overwrite
+//   if (file) {
+//     await new Promise((resolve) => setTimeout(resolve, 3000)); // wait 3s
+//   }
+
+//   return file ? formatCloudinaryFile(file) : existingImage;
+// };
 
 //delete any image by public ID
+
 export const deleteImage = async (publicId) => {
   if (!publicId) return null;
 
@@ -48,10 +63,11 @@ export const deleteImage = async (publicId) => {
       invalidate: true,
       resource_type: "image",
     });
-    console.log("✅ Cloudinary deletion result:", result);
+    console.log("cloudinary deletion result:", result);
     return result;
+
   } catch (error) {
-    console.error("❌ Cloudinary deletion failed:", error);
-    throw error;
+    console.error("cloudinary deletion failed:", err.message);
+    throw new AppError("Image deletion failed", 500);
   }
-}
+};

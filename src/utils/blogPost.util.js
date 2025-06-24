@@ -16,6 +16,49 @@ const normalizeTitle = (title) => {
     .replace(/^-+|-+$/g, ""); //trim leading/trailing hyphens
 };
 
+// const titleCaseWithAcronyms = (str) => {
+//   return str
+//   .trim()
+//   .split(/\s+/)
+//   .map(word => {
+//     // Keep acronyms (like FG, USA) fully uppercase if they already are
+//     if (word === word.toUpperCase() && word.length <= 3) {
+//       return word;
+//     }
+
+//     // Capitalize first letter only
+//     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+//   }).join(" ");
+// }
+
+const capitalizeWord = (word) => {
+  // Capitalizes the first letter and preserves the rest (for hyphens, apostrophes, etc.)
+  return word.charAt(0).toUpperCase() + word.slice(1);
+};
+
+const intelligentTitleCase = (str) => {
+  const smallWords = new Set([
+    "a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "so", "the", "to", "up", "yet"
+  ]);
+
+  return str
+    .trim()
+    .split(/\s+/)
+    .map((word, index) => {
+      // Preserve acronyms like FG, USA, etc.
+      if (word === word.toUpperCase() && word.length <= 3) return word;
+
+      // Always capitalize first word
+      if (index === 0) return capitalizeWord(word);
+
+      // Lowercase small/common words
+      if (smallWords.has(word.toLowerCase())) return word.toLowerCase();
+
+      return capitalizeWord(word);
+    })
+    .join(" ");
+};
+
 const emojiRegex =
   /([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD83C-\uDBFF\uDC00-\uDFFF])+|\p{Emoji_Presentation}/gu;
 
@@ -117,6 +160,8 @@ const buildSortOptions = (
 
 export {
   normalizeTitle,
+  // titleCaseWithAcronyms,
+  intelligentTitleCase,
   createSlug,
   calcReadTime,
   buildSearchQuery,

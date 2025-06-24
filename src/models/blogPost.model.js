@@ -51,7 +51,7 @@ const blogPostSchema = new Schema(
 
     readTime: {
       type: String,
-      default: 1,
+      default: "1 min read",
     },
 
     // author: {

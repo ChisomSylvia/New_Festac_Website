@@ -2,18 +2,22 @@ import BlogPostModel from "../models/blogPost.model.js";
 import { ACTIONS, STATUS, USER_TYPES } from "../configs/constants.config.js";
 import {
   normalizeTitle,
+  // titleCaseWithAcronyms,
   createSlug,
   calcReadTime,
   buildFilterQuery,
   buildSearchQuery,
   buildSortOptions,
   calcPaginationMeta,
+  intelligentTitleCase,
 } from "../utils/blogPost.util.js";
 import {
   handleImageUpdate,
   formatCloudinaryFile,
+  deleteImage,
 } from "../services/file.service.js";
 import { AppError } from "../utils/appError.util.js";
+import mongoose from "mongoose";
 
 //fxn to ensure unique slug
 const ensureUniqueSlug = async (slug) => {
@@ -45,6 +49,9 @@ export const _getBlogPost = async (query) => {
 
 //create post service
 export const createPost = async (data, file) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     //extract action from data, default to save if not provided
     const { action = ACTIONS.SAVE, ...postData } = data;
@@ -57,6 +64,8 @@ export const createPost = async (data, file) => {
       );
     }
 
+    postData.title = intelligentTitleCase(postData.title);
+
     //create normalized titlelower from title
     postData.titleLower = normalizeTitle(postData.title);
 
@@ -64,7 +73,7 @@ export const createPost = async (data, file) => {
     let exists;
     try {
       exists = await _getBlogPost({
-        titleLower: postData.titleLower
+        titleLower: postData.titleLower,
       });
     } catch (err) {
       if (err.message === "Post not found") {
@@ -73,9 +82,9 @@ export const createPost = async (data, file) => {
         throw new AppError(err.message || "Unknown server error", 500);
       }
     }
-        // const exists = await _getBlogPost({
-        //   titleLower,
-        // }).catch(() => null);
+    // const exists = await _getBlogPost({
+    //   titleLower,
+    // }).catch(() => null);
 
     if (exists) {
       throw new AppError(
@@ -103,9 +112,7 @@ export const createPost = async (data, file) => {
         break;
       default:
         postData.status = STATUS.DRAFT;
-        // postData.slug = null;
         postData.publishedAt = null;
-        break;
     }
 
     // if (action === ACTIONS.PUBLISH) {
@@ -124,11 +131,13 @@ export const createPost = async (data, file) => {
     //   postData.slug = null;
     // }
     // const featuredImage = file ? formatCloudinaryFile(file) : null;
-    
+
     postData.featuredImage = file ? formatCloudinaryFile(file) : null;
 
     //create blog post in database
-    const newBlogPost = await BlogPostModel.create(postData);
+    const newBlogPost = await BlogPostModel.create([postData], { session });
+    await session.commitTransaction();
+    session.endSession();
 
     //determine the right message to send
     const message =
@@ -139,10 +148,12 @@ export const createPost = async (data, file) => {
         : "Blog post saved as draft";
 
     return {
-      data: newBlogPost,
+      data: newBlogPost[0],
       message,
     };
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error("Error in createPost:", error);
     throw error;
   }
@@ -254,12 +265,15 @@ export const getPost = async (filters = {}, user = null) => {
 };
 
 //update post
-export const updatePost = async (query, updateData, file, user) => {
+export const updatePost = async (query, updateData, file) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { action, ...postData } = updateData;
 
     //check if post is existing first
-    const existingPost = await getPost(query, user);
+    const existingPost = await BlogPostModel.findOne(query).session(session);
     if (!existingPost) {
       throw new AppError("Post not found", 404);
     }
@@ -272,32 +286,35 @@ export const updatePost = async (query, updateData, file, user) => {
       );
     }
 
-    //if updating title, update titleLower and check for duplicates excluding the current data
+    //Always use existing title if title is not being updated
+    if (!postData.title) {
+      postData.title = existingPost.title;
+    }
+
+    postData.title = intelligentTitleCase(postData.title);
+
+    //normalize title and check for duplicates
     if (postData.title) {
       postData.titleLower = normalizeTitle(postData.title);
       const exists = await _getBlogPost({
         titleLower: postData.titleLower,
         _id: {
           $ne: query._id,
-        }, // exclude current post
+        }, // exclude current post from duplicate check
       });
+      console.log(
+        "Checking duplicate for:",
+        postData.titleLower,
+        "excluding:",
+        query._id
+      );
       if (exists) {
         console.log("Found duplicate post ID:", exists._id);
-        console.log(
-          "Checking duplicate for:",
-          postData.titleLower,
-          "excluding:",
-          query._id
-        );
         throw new AppError(
           "A similar post title already exists. Please use a different title",
           409
         );
       }
-    }
-
-    if (!postData.title) {
-      postData.title = existingPost.title
     }
 
     //update excerpt if present
@@ -326,51 +343,112 @@ export const updatePost = async (query, updateData, file, user) => {
         postData.publishedAt = null;
     }
 
+    //handle image update within transaction safe log
     if (file) {
-      //delete old image if new one is being uploaded
-      const existingImage = existingPost.featuredImage;
-
-      postData.featuredImage = await handleImageUpdate(file, existingImage);
+      try {
+        //delete old image if new one is being uploaded
+        const existingImage = existingPost.featuredImage;
+  
+        postData.featuredImage = await handleImageUpdate(file, existingImage);
+      } catch (imageError) {
+        await session.abortTransaction();
+        session.endSession();
+        throw new AppError("Image upload failed. Blog update was rolled back.", 500);
+      }
     }
 
     const updatedBlogPost = await BlogPostModel.findOneAndUpdate(
       query,
       postData,
-      { new: true }
+      { new: true, session }
     );
+
     if (!updatedBlogPost) {
       throw new AppError("Post not updated", 400);
     }
 
+    await session.commitTransaction();
+    session.endSession();
+
     return updatedBlogPost;
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error("Error updating blog post:", error);
     throw error;
   }
 };
 
 export const deletePost = async (query) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const exists = await getPost(query);
+    const exists = await BlogPostModel.findOne(query).session(session);
     if (!exists) {
       throw new AppError("Post not found", 404);
     }
 
-    if (exists.featuredImage?.publicId) {
-      await deleteImage(exists.featuredImage.publicId);
+    const publicId = exists.featuredImage?.publicId;
+
+    const delBlogPost = await BlogPostModel.findOneAndDelete(query).session(
+      session
+    );
+    if (!delBlogPost) {
+      throw new AppError("Failed to delete post", 500);
     }
 
-    const delBlogPost = await BlogPostModel.findOneAndDelete(query);
-    if (!delBlogPost) {
-      throw new AppError("Post not found", 404);
+    if (publicId) {
+      try {
+        await deleteImage(publicId);
+      } catch (cloudError) {
+        // Rollback DB deletion if image deletion fails
+        await session.abortTransaction();
+        session.endSession();
+        console.error("Cloudinary error:", cloudError.message);
+        throw new AppError(
+          "Image deletion failed. Blog post deletion was rolled back.",
+          500
+        );
+      }
     }
+
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
 
     return delBlogPost;
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error("Error deleting blog post:", error.message);
     throw error;
   }
 };
+
+// export const deletePost = async (query) => {
+//   try {
+//     const exists = await getPost(query);
+//     if (!exists) {
+//       throw new AppError("Post not found", 404);
+//     }
+
+//     const delBlogPost = await BlogPostModel.findOneAndDelete(query);
+//     if (!delBlogPost) {
+//       throw new AppError("Post not found", 404);
+//     }
+
+//     const publicId = exists.featuredImage?.publicId;
+//     if (publicId) {
+//       await deleteImage(publicId);
+//     }
+
+//     return delBlogPost;
+//   } catch (error) {
+//     console.error("Error deleting blog post:", error.message);
+//     throw error;
+//   }
+// };
 
 // export const incrementViews = async (query) => {
 //   const updatedBlogPost = await BlogPostModel.findOneAndUpdate(query, {
