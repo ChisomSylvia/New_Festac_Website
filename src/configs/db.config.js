@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import BlogPostModel from "../models/blogPost.model.js";
-import ContactMsgModel from "../models/contactMsg.model.js";
+// import ContactMsgModel from "../models/contactMsg.model.js";
+import PropertyModel from "../models/property.model.js";
 
 
 const connectToDb = async () => {
@@ -19,14 +20,18 @@ const connectToDb = async () => {
     await BlogPostModel.createIndexes();
     console.log("Indexes synced");
 
+    await PropertyModel.createIndexes();
+    console.log(" Property Indexes synced");
+
     // //remove index
     // await BlogPostModel.collection.dropIndex("tags_1");
     // console.log("index dropped");
     
 
     // Log the indexes
-    const indexes = await BlogPostModel.collection.getIndexes();
-    console.log("Indexes on BlogPostModel:", indexes);
+    
+    const indexes = await PropertyModel.collection.getIndexes();
+    console.log("Indexes on PropertyModel:", indexes);
   } catch (error) {
     console.error("Error detected:", error);
   }

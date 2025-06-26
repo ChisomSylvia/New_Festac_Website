@@ -3,7 +3,7 @@ import {
 } from "express";
 const router = Router();
 import { uploadFile, deleteFile } from "../controllers/file.controller.js";
-import upload from "../libs/multer.lib.js";
+import { upload } from "../libs/multer.lib.js";
 
 //upload featured image
 router.post("/upload", upload.single("image"), uploadFile);

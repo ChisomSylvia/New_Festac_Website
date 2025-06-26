@@ -426,6 +426,7 @@ export const deletePost = async (query) => {
   }
 };
 
+
 // export const deletePost = async (query) => {
 //   try {
 //     const exists = await getPost(query);

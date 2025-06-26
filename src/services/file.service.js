@@ -3,16 +3,21 @@ import { AppError } from "../utils/appError.util.js";
 
 //extracts url and publicId from cloudinary upload
 export const formatCloudinaryFile = (file) => {
-  if (!file) return null;
+  if (!file || !file.path || !file.filename) {
+    return null;
+  }
 
   console.log("File service", file);
   console.log("Uploading file at path:", file.path);
 
-  const url = file?.path
-    ? `${file?.path}?v=${Date.now()}`
-    : file?.secure_url || null;
+  const url = `${file?.path}?v=${Date.now()}`;
+  const publicId = file?.filename;
 
-  const publicId = file?.filename || file?.public_id || null;
+  // const url = file?.path
+  //   ? `${file?.path}?v=${Date.now()}`
+  //   : file?.secure_url || null;
+
+  // const publicId = file?.filename || file?.public_id || null;
 
   return { url, publicId };
 };
@@ -53,7 +58,9 @@ export const handleImageUpdate = async (file, existingImage) => {
 //   return file ? formatCloudinaryFile(file) : existingImage;
 // };
 
+
 //delete any image by public ID
+
 
 export const deleteImage = async (publicId) => {
   if (!publicId) return null;
@@ -67,7 +74,7 @@ export const deleteImage = async (publicId) => {
     return result;
 
   } catch (error) {
-    console.error("cloudinary deletion failed:", err.message);
+    console.error("cloudinary deletion failed:", error.message);
     throw new AppError("Image deletion failed", 500);
   }
 };
