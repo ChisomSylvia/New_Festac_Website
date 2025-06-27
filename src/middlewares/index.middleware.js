@@ -4,8 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import indexRoute from "../routes/index.route.js";
-import { errorHandler } from "./errorHandler.middleware.js"
-
+import { errorHandler } from "./errorHandler.middleware.js";
 
 export default (app) => {
   //parse JSON and form data
@@ -17,17 +16,22 @@ export default (app) => {
     //HTTP request logger
     app.use(morgan("dev"));
   }
-  
+
   app.use(morgan("combined"));
 
-  const allowedOrigins = ["https://festac-project.vercel.app", "http://localhost:3000", "http://localhost:3001", "https://new-festac-website.onrender.com"]
+  const allowedOrigins = [
+    "https://festac-project.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "https://new-festac-website.onrender.com",
+  ];
 
   //enable CORS for all origins
-  app.use(cors({ origin: allowedOrigins, credentials: true}));
+  app.use(cors({ origin: allowedOrigins, credentials: true }));
 
   //set secure HTTP headers
   app.use(helmet());
-
 
   //parse cookies from client requests
   app.use(cookieParser());
