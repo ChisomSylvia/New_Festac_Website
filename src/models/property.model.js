@@ -9,6 +9,11 @@ const propertySchema = new Schema(
       trim: true,
     },
 
+    originalPublicIdBase: {
+      type: String,
+      required: true,
+    },
+
     location: {
       type: String,
       required: true,
@@ -34,9 +39,10 @@ const propertySchema = new Schema(
     },
 
     price: {
-      type: Number,
+      type: String,
       required: true,
-      default: null,
+      trim: true,
+      default: "0 Naira",
     },
 
     contactInfo: {

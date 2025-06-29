@@ -160,7 +160,6 @@ const buildSortOptions = (
 
 export {
   normalizeTitle,
-  // titleCaseWithAcronyms,
   intelligentTitleCase,
   createSlug,
   calcReadTime,

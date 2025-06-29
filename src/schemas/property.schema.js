@@ -28,7 +28,7 @@ const createPropertySchema = Joi.object({
 
   size: Joi.string().trim().required(),
 
-  price: Joi.number().positive().required(),
+  price: Joi.string().trim().required(),
 
   contactInfo: Joi.object({
     phoneNumber: Joi.string().pattern(PHONENO_PATTERN).required(),
@@ -39,10 +39,6 @@ const createPropertySchema = Joi.object({
   category: Joi.alternatives().try(Joi.array().items(Joi.string().valid(...Object.values(CATEGORY))),
   Joi.string().valid(...Object.values(CATEGORY))
   ).required(),
-
-  // category: Joi.array()
-  //   .items(Joi.string().valid(...Object.values(CATEGORY)))
-  //   .required(),
 
   type: Joi.string()
     .valid(...Object.values(TYPE))
@@ -135,7 +131,7 @@ const updatePropertySchema = Joi.object({
 
   size: Joi.string().trim().optional(),
 
-  price: Joi.number().positive().optional(),
+  price: Joi.string().trim().optional(),
 
   contactInfo: Joi.object({
     phoneNumber: Joi.string().pattern(PHONENO_PATTERN).optional(),
@@ -143,9 +139,9 @@ const updatePropertySchema = Joi.object({
     email: Joi.string().email().optional()
   }).optional(),
 
-  category: Joi.array()
-    .items(Joi.string().valid(...Object.values(CATEGORY)))
-    .optional(),
+  category: Joi.alternatives().try(Joi.array().items(Joi.string().valid(...Object.values(CATEGORY))),
+    Joi.string().valid(...Object.values(CATEGORY))
+  ).optional(),
 
   type: Joi.string()
     .valid(...Object.values(TYPE))

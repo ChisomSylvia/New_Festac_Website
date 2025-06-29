@@ -41,7 +41,7 @@ export const getAllPropertiesCtrl = async (req, res, next) => {
       message: `Found ${properties.properties.length} properties`,
       data: properties.properties,
       total: properties.pagination,
-      totalData,
+      // totalData,
       pagination: properties.pagination,
       filters: properties.appliedFilters,
     });
@@ -55,6 +55,8 @@ export const getAllPropertiesCtrl = async (req, res, next) => {
 export const getPropertyCtrl = async (req, res, next) => {
   try {
     const { id } = req.validatedParams;
+    console.log("ID", id);
+    
 
     const property = await getProperty(id);
 

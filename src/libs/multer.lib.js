@@ -1,11 +1,13 @@
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import multer from "multer";
 import cloudinary from "./cloudinary.lib.js";
+// import { generatePublicIdBase } from "../services/file.service.js";
 import { normalizeTitle } from "../utils/blogPost.util.js";
 import BlogPostModel from "../models/blogPost.model.js";
-import PropertyModel from "../models/property.model.js";
+// import PropertyModel from "../models/property.model.js";
 
-const storage = new CloudinaryStorage({
+
+const blogStorage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
     let title = req.body?.title;
@@ -28,29 +30,17 @@ const storage = new CloudinaryStorage({
       public_id: `blog-${titleLower}`,
       overwrite: true,
       allowed_formats: ["jpg", "png", "jpeg", "webp"],
-      transformation: [{ quality: "auto" }, { fetch_format: "auto" }],
+      transformation: [{
+        quality: "auto"
+      }, {
+        fetch_format: "auto"
+      }],
     };
   },
 });
 
-// const storage = new CloudinaryStorage({
-//   cloudinary,
-//   params: async (req, file) => {
-//     const title = req.body.title || "untitled";
-//     const titleLower = normalizeTitle(title);
-
-//     return {
-//       folder: "festac-featured-images",
-//       public_id: `blog-${titleLower}`,
-//       overwrite: true,
-//       allowed_formats: ["jpg", "png", "jpeg", "webp"],
-//       transformation: [{ quality: "auto" }, { fetch_format: "auto" }],
-//     };
-//   },
-// });
-
 const upload = multer({
-  storage,
+  blogStorage,
   limits: {
     fileSize: 5 * 1024 * 1024,
   }, // 5MB
@@ -64,50 +54,135 @@ const upload = multer({
   },
 });
 
+
+// const blogStorage = new CloudinaryStorage({
+//   cloudinary,
+//   params: async (req, file) => {
+//     //generate permanent public ID base
+//     const publicIdBase = generatePublicIdBase();
+
+
+//     return {
+//       folder: "festac-featured-images",
+//       public_id: `blog-${publicIdBase}`,
+//       overwrite: true,
+//       allowed_formats: ["jpg", "png", "jpeg", "webp"],
+//       transformation: [{ quality: "auto" }, { fetch_format: "auto" }],
+//     };
+//   },
+// });
+
+// const upload = multer({
+//   blogStorage,
+//   limits: {
+//     fileSize: 5 * 1024 * 1024,
+//   }, // 5MB
+//   fileFilter: (req, file, cb) => {
+//     const allowed = ["image/jpg", "image/jpeg", "image/png", "image/webp"];
+//     if (allowed.includes(file.mimetype)) {
+//       cb(null, true);
+//     } else {
+//       cb(new Error("Only .jpeg, .png, or .webp images are allowed."));
+//     }
+//   },
+// });
+
+
+
+
+//new added lines start
+//property storage with non dynamic temporary public IDs
 const propertyStorage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
-    let title = req.body?.title;
-
-    // Fallback: title not sent, try to fetch from DB using ID in req.params
-    if (!title && req.params?.id) {
-      try {
-        const property = await PropertyModel.findById(req.params.id);
-        title = property?.title || "untitled";
-      } catch (err) {
-        console.warn("Could not fetch title for Cloudinary public_id:", err);
-        title = "untitled";
-      }
+    //generate or reuse base ID for this entire request
+    if (!req.uploadSessionId) {
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(2, 8);
+      req.uploadSessionId = `property-${timestamp}-${randomId}`;
     }
 
-    //initialize uploadbatch ID counter per request
-    if (!req._uploadSessionId) {
-      req._normalizedTitle = normalizeTitle(title);
-      req._uploadSessionId = Date.now();
-      req.fileIndex = 0;
-    }
+    const fileIndex = req.fileIndex || 0;
 
-    const index = req.fileIndex++;
-    const publicId = `property-${req._normalizedTitle}-${index}`;
+    //increment file index for this request
+    req.fileIndex = (req.fileIndex || 0) + 1;
+
+    // Create temp public ID using the consistent base
+    const publicId = `temp-${req.uploadSessionId}-${fileIndex}`;
 
     return {
       folder: "festac-property-images",
       public_id: publicId,
-      overwrite: true,
+      overwrite: false, //don't overwrite during upload
       allowed_formats: ["jpg", "jpeg", "png", "webp"],
-      transformation: [{ quality: "auto" }, { fetch_format: "auto" }]
+      transformation: [
+        {
+          quality: "auto",
+        },
+        {
+          fetch_format: "auto",
+        },
+      ],
     };
   },
 });
 
 const propertyUpload = multer({
   storage: propertyStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
   fileFilter: (req, file, cb) => {
     const allowed = ["image/jpg", "image/jpeg", "image/png", "image/webp"];
     if (allowed.includes(file.mimetype)) cb(null, true);
     else cb(new Error("Only .jpeg, .png, or .webp images are allowed."));
   },
-})
+}); //new added lines end
 
 export { upload, propertyUpload };
+
+// const propertyStorage = new CloudinaryStorage({
+//   cloudinary,
+//   params: async (req, file) => {
+//     let title = req.body?.title;
+
+//     // Fallback: title not sent, try to fetch from DB using ID in req.params
+//     if (!title && req.params?.id) {
+//       try {
+//         const property = await PropertyModel.findById(req.params.id);
+//         title = property?.title || "untitled";
+//       } catch (err) {
+//         console.warn("Could not fetch title for Cloudinary public_id:", err);
+//         title = "untitled";
+//       }
+//     }
+
+//     //initialize uploadbatch ID counter per request
+//     if (!req._uploadSessionId) {
+//       req._normalizedTitle = normalizeTitle(title);
+//       req._uploadSessionId = Date.now();
+//       req.fileIndex = 0;
+//     }
+
+//     const index = req.fileIndex++;
+//     const publicId = `property-${req._normalizedTitle}-${index}`;
+
+//     return {
+//       folder: "festac-property-images",
+//       public_id: publicId,
+//       overwrite: true,
+//       allowed_formats: ["jpg", "jpeg", "png", "webp"],
+//       transformation: [{ quality: "auto" }, { fetch_format: "auto" }],
+//     };
+//   },
+// });
+
+// const propertyUpload = multer({
+//   storage: propertyStorage,
+//   limits: { fileSize: 5 * 1024 * 1024 },
+//   fileFilter: (req, file, cb) => {
+//     const allowed = ["image/jpg", "image/jpeg", "image/png", "image/webp"];
+//     if (allowed.includes(file.mimetype)) cb(null, true);
+//     else cb(new Error("Only .jpeg, .png, or .webp images are allowed."));
+//   },
+// });

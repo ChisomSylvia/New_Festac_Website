@@ -9,7 +9,6 @@ const capitalizeWord = (word) => {
   return word.charAt(0).toUpperCase() + word.slice(1);
 };
 
-
 const intelligentTitleCase = (str) => {
   const smallWords = new Set([
     "a",
@@ -52,11 +51,14 @@ const intelligentTitleCase = (str) => {
 
 //fxn to normalize an string to array
 const normalizeToArray = (input) =>
-  Array.isArray(input)
+  input === null
+    ? []
+    : Array.isArray(input)
     ? input
-    : String(input)
-        .split(",")
-        .map((v) => v.trim());
+    : String(input) //ensures even null/undefined becomes a string
+        .split(",") //split comma
+        .map((v) => v.trim()) //remove whitespace
+        .filter((v) => v.length > 0);
 
 //fxn to build search query
 const buildSearchQuery = ({ keyword }) => {

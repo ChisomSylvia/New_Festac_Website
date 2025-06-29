@@ -13,8 +13,11 @@ import {
 } from "../utils/blogPost.util.js";
 import {
   handleImageUpdate,
-  formatCloudinaryFile,
+  // formatCloudinaryFile,
   deleteImage,
+  generatePublicIdBase,
+  processPropertyImage,
+  cleanupTempUploads,
 } from "../services/file.service.js";
 import { AppError } from "../utils/appError.util.js";
 import mongoose from "mongoose";
@@ -48,6 +51,117 @@ export const _getBlogPost = async (query) => {
 };
 
 //create post service
+// export const createPost = async (data, file) => {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     //extract action from data, default to save if not provided
+//     const { action = ACTIONS.SAVE, ...postData } = data;
+
+//     //validate action
+//     if (!Object.values(ACTIONS).includes(action)) {
+//       throw new AppError(
+//         `Invalid action. Must be one of ${Object.values(ACTIONS).join(", ")}`,
+//         400
+//       );
+//     }
+
+//     postData.title = intelligentTitleCase(postData.title);
+
+//     //create normalized titlelower from title
+//     postData.titleLower = normalizeTitle(postData.title);
+
+//     //check for duplicate title using titlelower before creating post
+//     let exists;
+//     try {
+//       exists = await _getBlogPost({
+//         titleLower: postData.titleLower,
+//       });
+//     } catch (err) {
+//       if (err.message === "Post not found") {
+//         exists = null;
+//       } else {
+//         throw new AppError(err.message || "Unknown server error", 500);
+//       }
+//     }
+//     // const exists = await _getBlogPost({
+//     //   titleLower,
+//     // }).catch(() => null);
+
+//     if (exists) {
+//       throw new AppError(
+//         "A similar post title already exists. Please use a different title",
+//         409
+//       );
+//     }
+
+//     // Always append ellipsis to excerpt if not already present
+//     if (!postData.excerpt.trim().endsWith("...")) {
+//       postData.excerpt = `${postData.excerpt.trim()}...`;
+//     }
+
+//     //run action dependent modifications
+//     switch (action) {
+//       case ACTIONS.PUBLISH:
+//         const baseSlug = createSlug(postData.title);
+//         postData.slug = await ensureUniqueSlug(baseSlug);
+//         postData.status = STATUS.PUBLISHED;
+//         postData.publishedAt = new Date();
+//         postData.readTime = calcReadTime(postData.content);
+//         break;
+//       case ACTIONS.ARCHIVE:
+//         postData.status = STATUS.ARCHIVED;
+//         break;
+//       default:
+//         postData.status = STATUS.DRAFT;
+//         postData.publishedAt = null;
+//     }
+
+//     // if (action === ACTIONS.PUBLISH) {
+//     //   //1. generate slug from title
+//     //   const baseSlug = createSlug(postData.title);
+//     //   postData.slug = await ensureUniqueSlug(baseSlug);
+//     //   //2. set status to published, date to current date, and readtime
+//     //   postData.status = STATUS.PUBLISHED;
+//     //   postData.publishedAt = new Date();
+//     //   postData.readTime = calcReadTime(postData.content);
+//     // } else if (action === ACTIONS.ARCHIVE) {
+//     //   postData.status = STATUS.ARCHIVED;
+//     // } else {
+//     //   postData.status = STATUS.DRAFT;
+//     //   postData.publishedAt = null;
+//     //   postData.slug = null;
+//     // }
+//     // const featuredImage = file ? formatCloudinaryFile(file) : null;
+
+//     postData.featuredImage = file ? formatCloudinaryFile(file) : null;
+
+//     //create blog post in database
+//     const newBlogPost = await BlogPostModel.create([postData], { session });
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     //determine the right message to send
+//     const message =
+//       action === ACTIONS.PUBLISH
+//         ? "Blog post published successfully"
+//         : action === ACTIONS.ARCHIVE
+//         ? "Blog post archived"
+//         : "Blog post saved as draft";
+
+//     return {
+//       data: newBlogPost[0],
+//       message,
+//     };
+//   } catch (error) {
+//     await session.abortTransaction();
+//     session.endSession();
+//     console.error("Error in createPost:", error);
+//     throw error;
+//   }
+// };
+
 export const createPost = async (data, file) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -63,6 +177,10 @@ export const createPost = async (data, file) => {
         400
       );
     }
+
+    //generate permanent public ID base
+    const publicIdBase = generatePublicIdBase();
+    postData.originalPublicIdBase = publicIdBase;
 
     postData.title = intelligentTitleCase(postData.title);
 
@@ -115,27 +233,31 @@ export const createPost = async (data, file) => {
         postData.publishedAt = null;
     }
 
-    // if (action === ACTIONS.PUBLISH) {
-    //   //1. generate slug from title
-    //   const baseSlug = createSlug(postData.title);
-    //   postData.slug = await ensureUniqueSlug(baseSlug);
-    //   //2. set status to published, date to current date, and readtime
-    //   postData.status = STATUS.PUBLISHED;
-    //   postData.publishedAt = new Date();
-    //   postData.readTime = calcReadTime(postData.content);
-    // } else if (action === ACTIONS.ARCHIVE) {
-    //   postData.status = STATUS.ARCHIVED;
-    // } else {
-    //   postData.status = STATUS.DRAFT;
-    //   postData.publishedAt = null;
-    //   postData.slug = null;
-    // }
-    // const featuredImage = file ? formatCloudinaryFile(file) : null;
+    //process image with permanent public ID
+    let image = null;
 
-    postData.featuredImage = file ? formatCloudinaryFile(file) : null;
+    if (file) {
+      try {
+        image = await processPropertyImage(file, publicIdBase, null);
+      } catch (error) {
+        console.error("Failed to process image:", error);
+        await cleanupTempUploads(file);
+        image = null;
+      }
+
+      postData.featuredImage = image;
+    }
+
+    // const image = file
+    // ? await processPropertyImage(file, publicIdBase, index = null)
+    // : null;
+
+    // postData.featuredImage = image;
 
     //create blog post in database
-    const newBlogPost = await BlogPostModel.create([postData], { session });
+    const newBlogPost = await BlogPostModel.create([postData], {
+      session,
+    });
     await session.commitTransaction();
     session.endSession();
 
@@ -154,6 +276,9 @@ export const createPost = async (data, file) => {
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
+
+    await cleanupTempUploads(file);
+
     console.error("Error in createPost:", error);
     throw error;
   }
@@ -286,15 +411,17 @@ export const updatePost = async (query, updateData, file) => {
       );
     }
 
-    //Always use existing title if title is not being updated
-    if (!postData.title) {
-      postData.title = existingPost.title;
-    }
+    //use original public ID base
+    const publicIdBase = existingPost.originalPublicIdBase;
 
-    postData.title = intelligentTitleCase(postData.title);
+    // //Always use existing title if title is not being updated
+    // if (!postData.title) {
+    //   postData.title = existingPost.title;
+    // }
 
     //normalize title and check for duplicates
     if (postData.title) {
+      postData.title = intelligentTitleCase(postData.title);
       postData.titleLower = normalizeTitle(postData.title);
       const exists = await _getBlogPost({
         titleLower: postData.titleLower,
@@ -348,12 +475,23 @@ export const updatePost = async (query, updateData, file) => {
       try {
         //delete old image if new one is being uploaded
         const existingImage = existingPost.featuredImage;
-  
-        postData.featuredImage = await handleImageUpdate(file, existingImage);
+
+        postData.featuredImage = await handleImageUpdate(
+          file,
+          existingImage,
+          publicIdBase,
+          null
+        );
       } catch (imageError) {
         await session.abortTransaction();
         session.endSession();
-        throw new AppError("Image upload failed. Blog update was rolled back.", 500);
+
+        await cleanupTempUploads(file);
+
+        throw new AppError(
+          "Image update failed. Blog update was rolled back.",
+          500
+        );
       }
     }
 
@@ -364,6 +502,7 @@ export const updatePost = async (query, updateData, file) => {
     );
 
     if (!updatedBlogPost) {
+      await cleanupTempUploads(file);
       throw new AppError("Post not updated", 400);
     }
 
@@ -374,6 +513,9 @@ export const updatePost = async (query, updateData, file) => {
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
+
+    await cleanupTempUploads(file);
+
     console.error("Error updating blog post:", error);
     throw error;
   }
@@ -425,7 +567,6 @@ export const deletePost = async (query) => {
     throw error;
   }
 };
-
 
 // export const deletePost = async (query) => {
 //   try {

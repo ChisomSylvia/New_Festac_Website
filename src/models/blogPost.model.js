@@ -10,6 +10,11 @@ const blogPostSchema = new Schema(
       unique: true,
     },
 
+    originalPublicIdBase: {
+      type: String,
+      required: true,
+    },
+
     titleLower: {
       type: String,
       required: true,
