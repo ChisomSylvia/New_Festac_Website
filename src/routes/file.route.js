@@ -3,13 +3,13 @@ import {
 } from "express";
 const router = Router();
 import { uploadFile, deleteFile } from "../controllers/file.controller.js";
-import { upload } from "../libs/multer.lib.js";
+import { blogUpload } from "../libs/multer.lib.js";
 
-//upload featured image
-router.post("/upload", upload.single("image"), uploadFile);
+//blogUpload featured image
+router.post("/upload", blogUpload.single("image"), uploadFile);
 
 // //update featured image
-// router.patch("/upload", upload.single("image"), updateFeaturedImage);
+// router.patch("/upload", blogUpload.single("image"), updateFeaturedImage);
 
 //delete featured image
 router.delete("/delete/:public_id", deleteFile);

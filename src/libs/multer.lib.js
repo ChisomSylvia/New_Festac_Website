@@ -6,7 +6,6 @@ import { normalizeTitle } from "../utils/blogPost.util.js";
 import BlogPostModel from "../models/blogPost.model.js";
 // import PropertyModel from "../models/property.model.js";
 
-
 const blogStorage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
@@ -28,19 +27,22 @@ const blogStorage = new CloudinaryStorage({
     return {
       folder: "festac-featured-images",
       public_id: `blog-${titleLower}`,
-      overwrite: true,
+      overwrite: false,
       allowed_formats: ["jpg", "png", "jpeg", "webp"],
-      transformation: [{
-        quality: "auto"
-      }, {
-        fetch_format: "auto"
-      }],
+      transformation: [
+        {
+          quality: "auto",
+        },
+        {
+          fetch_format: "auto",
+        },
+      ],
     };
   },
 });
 
-const upload = multer({
-  blogStorage,
+const blogUpload = multer({
+  storage: blogStorage,
   limits: {
     fileSize: 5 * 1024 * 1024,
   }, // 5MB
@@ -54,43 +56,6 @@ const upload = multer({
   },
 });
 
-
-// const blogStorage = new CloudinaryStorage({
-//   cloudinary,
-//   params: async (req, file) => {
-//     //generate permanent public ID base
-//     const publicIdBase = generatePublicIdBase();
-
-
-//     return {
-//       folder: "festac-featured-images",
-//       public_id: `blog-${publicIdBase}`,
-//       overwrite: true,
-//       allowed_formats: ["jpg", "png", "jpeg", "webp"],
-//       transformation: [{ quality: "auto" }, { fetch_format: "auto" }],
-//     };
-//   },
-// });
-
-// const upload = multer({
-//   blogStorage,
-//   limits: {
-//     fileSize: 5 * 1024 * 1024,
-//   }, // 5MB
-//   fileFilter: (req, file, cb) => {
-//     const allowed = ["image/jpg", "image/jpeg", "image/png", "image/webp"];
-//     if (allowed.includes(file.mimetype)) {
-//       cb(null, true);
-//     } else {
-//       cb(new Error("Only .jpeg, .png, or .webp images are allowed."));
-//     }
-//   },
-// });
-
-
-
-
-//new added lines start
 //property storage with non dynamic temporary public IDs
 const propertyStorage = new CloudinaryStorage({
   cloudinary,
@@ -113,7 +78,7 @@ const propertyStorage = new CloudinaryStorage({
     return {
       folder: "festac-property-images",
       public_id: publicId,
-      overwrite: false, //don't overwrite during upload
+      overwrite: false, //don't overwrite during blogUpload
       allowed_formats: ["jpg", "jpeg", "png", "webp"],
       transformation: [
         {
@@ -139,7 +104,7 @@ const propertyUpload = multer({
   },
 }); //new added lines end
 
-export { upload, propertyUpload };
+export { blogUpload, propertyUpload };
 
 // const propertyStorage = new CloudinaryStorage({
 //   cloudinary,

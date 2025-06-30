@@ -16,7 +16,7 @@ import {
   // formatCloudinaryFile,
   deleteImage,
   generatePublicIdBase,
-  processPropertyImage,
+  processImageUpload,
   cleanupTempUploads,
 } from "../services/file.service.js";
 import { AppError } from "../utils/appError.util.js";
@@ -238,21 +238,20 @@ export const createPost = async (data, file) => {
 
     if (file) {
       try {
-        image = await processPropertyImage(file, publicIdBase, null);
+        image = await processImageUpload(file, publicIdBase, 0);
       } catch (error) {
         console.error("Failed to process image:", error);
+
+        await session.abortTransaction();
+        session.endSession();
+
         await cleanupTempUploads(file);
-        image = null;
+
+        throw new AppError("Image upload failed", 500);
       }
 
       postData.featuredImage = image;
     }
-
-    // const image = file
-    // ? await processPropertyImage(file, publicIdBase, index = null)
-    // : null;
-
-    // postData.featuredImage = image;
 
     //create blog post in database
     const newBlogPost = await BlogPostModel.create([postData], {
@@ -414,11 +413,6 @@ export const updatePost = async (query, updateData, file) => {
     //use original public ID base
     const publicIdBase = existingPost.originalPublicIdBase;
 
-    // //Always use existing title if title is not being updated
-    // if (!postData.title) {
-    //   postData.title = existingPost.title;
-    // }
-
     //normalize title and check for duplicates
     if (postData.title) {
       postData.title = intelligentTitleCase(postData.title);
@@ -480,7 +474,7 @@ export const updatePost = async (query, updateData, file) => {
           file,
           existingImage,
           publicIdBase,
-          null
+          0
         );
       } catch (imageError) {
         await session.abortTransaction();

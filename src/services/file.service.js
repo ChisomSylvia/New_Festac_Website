@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 export const generatePublicIdBase = () => {
   const timestamp = Date.now();
   const uuid = uuidv4().substring(0, 8);
-  return `property-${timestamp}-${uuid}`;
+  return `public-${timestamp}-${uuid}`;
 };
 
 //extracts url and publicId from cloudinary upload
@@ -54,21 +54,18 @@ export const renameCloudinaryImage = async (tempPublicId, finalPublicId) => {
 };
 
 //process uploaded image from multer for property creation with permanent ID
-export const processPropertyImage = async (
+export const processImageUpload = async (
   file,
   publicIdBase,
   index,
   // uploadedPublicIds = []
 ) => {
   if (!file) return null;
-  console.log("File incoming in processProperty", file);
-  
 
   let tempPublicId = null;
 
   try {
     const tempImage = formatCloudinaryFile(file);
-    console.log("File", tempImage);
     
     if (!tempImage || !tempImage.publicId || !tempImage.url) {
       throw new AppError("Invalid file upload", 400);
@@ -97,7 +94,7 @@ export const processPropertyImage = async (
     //     }
     //   }
     // }
-    console.error("processPropertyImage failed:", error.message);
+    console.error("processImageUpload failed:", error.message);
     throw error;
   }
 };

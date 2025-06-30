@@ -1,6 +1,10 @@
 import cloudinary from "../libs/cloudinary.lib.js";
 
-const rollbackCloudinaryTempUploads = async (files = []) => {
+const rollbackCloudinaryTempUploads = async (input) => {
+    if (!input) return;
+
+  const files = Array.isArray(input) ? input : [input];
+
   await Promise.all(
     files.map((file) => {
       const publicId = file?.filename;

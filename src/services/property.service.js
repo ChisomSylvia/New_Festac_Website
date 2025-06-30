@@ -7,7 +7,7 @@ import {
   generatePublicIdBase,
   handleImageAppend,
   handleImageUpdate,
-  processPropertyImage,
+  processImageUpload,
 } from "./file.service.js";
 import { buildFilterQuery, buildSortOptions } from "../utils/property.util.js";
 import {
@@ -69,7 +69,7 @@ export const createProperty = async (data, files) => {
     //process images with permanent public ID base
     const processedImages = await Promise.allSettled(
       imageFiles.map((file, index) =>
-        processPropertyImage(
+        processImageUpload(
           file, 
           publicIdBase, 
           index, 
@@ -380,7 +380,7 @@ export const updateProperty = async (id, data, files) => {
 
       const newImages = await Promise.allSettled(
         imageFiles.map((file, index) =>
-          processPropertyImage(
+          processImageUpload(
             file,
             publicIdBase,
             index

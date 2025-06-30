@@ -1,6 +1,6 @@
 import { Router } from "express";
 const router = Router();
-import { upload } from "../libs/multer.lib.js";
+import { blogUpload } from "../libs/multer.lib.js";
 import {
   createPostCtrl,
   getAllPostsCtrl,
@@ -25,7 +25,7 @@ import { USER_TYPES } from "../configs/constants.config.js";
 router.post(
   "/",
   authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]),
-  upload.single("featuredImage"),
+  blogUpload.single("featuredImage"),
   validate({
     body: createPostSchema,
   }),
@@ -69,7 +69,7 @@ router.get(
 router.patch(
   "/update/:id",
   authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]),
-  upload.single("featuredImage"),
+  blogUpload.single("featuredImage"),
   validate({
     body: updatePostSchema,
   }),

@@ -39,8 +39,8 @@ const blogPostSchema = new Schema(
     },
 
     featuredImage: {
-      url: { type: String, default: null },
-      publicId: { type: String, default: null },
+      url: { type: String, required: true },
+      publicId: { type: String, required: true },
     },
 
     status: {
