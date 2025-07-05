@@ -108,13 +108,13 @@ const propertySchema = new Schema(
   }
 );
 
-// blogPostSchema.index({ status: 1 });
-// blogPostSchema.index({ type: 1 });
-// blogPostSchema.index({ bedrooms: 1 });
-// blogPostSchema.index({ bathrooms: 1 });
-// blogPostSchema.index({ size: 1 });
-// blogPostSchema.index({ price: 1 });
-// blogPostSchema.index({ listedAt: 1 });
+// propertySchema.index({ status: 1 });
+// propertySchema.index({ type: 1 });
+// propertySchema.index({ bedrooms: 1 });
+// propertySchema.index({ bathrooms: 1 });
+// propertySchema.index({ size: 1 });
+// propertySchema.index({ price: 1 });
+// propertySchema.index({ listedAt: 1 });
 
 propertySchema.index({ status: 1, type: 1, bedrooms: 1, price: 1, listedAt: -1 });
 

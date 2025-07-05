@@ -16,12 +16,31 @@ const decryptData = async (dataToCompare, dataToDecrypt) => {
 //fxn to generate user token
 const generateUserToken = (userData) => {
   return jwt.sign({
-      _id: userData._id,
-      email: userData.email,
-      phoneNumber: userData.phoneNumber,
+      id: userData.id,
       role: userData.role,
-    }, process.env.SECRET, { expiresIn: 604800 });
+    }, process.env.SECRET, { expiresIn: 86400 });
+};
+
+//fxn to set auth cookie
+const setAuthCookie = (res, token) => {
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+  };
+
+  res.cookie("Token", token, cookieOptions);
+};
+
+const clearAuthCookie = (res) => {
+  res.cookie("Token", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    expires: new Date(0),
+  });
 };
 
 
-export { encryptData, decryptData, generateUserToken };
+export { encryptData, decryptData, generateUserToken, setAuthCookie, clearAuthCookie };

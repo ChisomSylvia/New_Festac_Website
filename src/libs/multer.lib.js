@@ -4,12 +4,65 @@ import cloudinary from "./cloudinary.lib.js";
 // import { generatePublicIdBase } from "../services/file.service.js";
 import { normalizeTitle } from "../utils/blogPost.util.js";
 import BlogPostModel from "../models/blogPost.model.js";
+import UserModel from "../models/user.model.js";
 // import PropertyModel from "../models/property.model.js";
 
+//profile image upload
+const profileImageStorage = new CloudinaryStorage({
+  cloudinary,
+  params: async (req, file) => {
+   let name = req.body?.name;
+
+    //fallback: name not sent, try to fetch from DB using ID in req.params
+    if (!name && req.params?.id) {
+      try {
+        const user = await UserModel.findById(req.params.id);
+        name = user?.name || "untitled";
+      } catch (err) {
+        console.warn("Could not fetch name for Cloudinary public_id:", err);
+        name = "untitled";
+      }
+    }
+
+    const nameLower = normalizeTitle(name);
+
+    return {
+      folder: "festac-profile-images",
+      public_id: `${nameLower}-profile-image`,
+      overwrite: false,
+      allowed_formats: ["jpg", "png", "jpeg", "webp"],
+      transformation: [
+        {
+          quality: "auto",
+        },
+        {
+          fetch_format: "auto",
+        },
+      ],
+    };
+  },
+});
+
+const profileImageUpload = multer({
+  storage: profileImageStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ["image/jpg", "image/jpeg", "image/png", "image/webp"];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only .jpeg, .png, or .webp images are allowed."));
+    }
+  },
+});
+
+//blog image upload
 const blogStorage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
-    let title = req.body?.title;
+    title = req.body?.title;
 
     // Fallback: title not sent, try to fetch from DB using ID in req.params
     if (!title && req.params?.id) {
@@ -104,50 +157,5 @@ const propertyUpload = multer({
   },
 }); //new added lines end
 
-export { blogUpload, propertyUpload };
 
-// const propertyStorage = new CloudinaryStorage({
-//   cloudinary,
-//   params: async (req, file) => {
-//     let title = req.body?.title;
-
-//     // Fallback: title not sent, try to fetch from DB using ID in req.params
-//     if (!title && req.params?.id) {
-//       try {
-//         const property = await PropertyModel.findById(req.params.id);
-//         title = property?.title || "untitled";
-//       } catch (err) {
-//         console.warn("Could not fetch title for Cloudinary public_id:", err);
-//         title = "untitled";
-//       }
-//     }
-
-//     //initialize uploadbatch ID counter per request
-//     if (!req._uploadSessionId) {
-//       req._normalizedTitle = normalizeTitle(title);
-//       req._uploadSessionId = Date.now();
-//       req.fileIndex = 0;
-//     }
-
-//     const index = req.fileIndex++;
-//     const publicId = `property-${req._normalizedTitle}-${index}`;
-
-//     return {
-//       folder: "festac-property-images",
-//       public_id: publicId,
-//       overwrite: true,
-//       allowed_formats: ["jpg", "jpeg", "png", "webp"],
-//       transformation: [{ quality: "auto" }, { fetch_format: "auto" }],
-//     };
-//   },
-// });
-
-// const propertyUpload = multer({
-//   storage: propertyStorage,
-//   limits: { fileSize: 5 * 1024 * 1024 },
-//   fileFilter: (req, file, cb) => {
-//     const allowed = ["image/jpg", "image/jpeg", "image/png", "image/webp"];
-//     if (allowed.includes(file.mimetype)) cb(null, true);
-//     else cb(new Error("Only .jpeg, .png, or .webp images are allowed."));
-//   },
-// });
+export { profileImageUpload, blogUpload, propertyUpload };

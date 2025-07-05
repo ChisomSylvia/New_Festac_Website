@@ -11,3 +11,7 @@ export const errorHandler = (err, req, res, next) => {
     message
   });
 };
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  
+})

@@ -1,189 +1,145 @@
 import {
-  createUser,
-  getUser
-} from "../services/user.service.js";
-import {
-  encryptData,
-  decryptData,
-  generateUserToken
-} from "../utils/dataCrypto.util.js";
-import {
-  USER_TYPES
-} from "../configs/constants.config.js";
+  changePassword,
+  loginUser,
+  refreshUserToken,
+  signupUser,
+} from "../services/auth.service.js";
+import { AppError } from "../utils/appError.util.js";
+import { clearAuthCookie, setAuthCookie } from "../utils/dataCrypto.util.js";
 
+//create super-admin
+export const signup = async (req, res, next) => {
+  try {
+    const { validatedBody: data } = req;
+    const { file } = req;
+    data.email = data.email.toLowerCase();
 
-//Create Admin
-const createSuperAdmin = async (req, res) => {
-  const {
-    validatedBody: body
-  } = req;
-  body.email = body.email.toLowerCase();
-  
-  //assign default password if passsword key is missing
-  if (!body.password) body.password = "user";
+    //save new super-admin details
+    const result = await signupUser({ body: data }, file);
 
-  //Check if email and/or phone number already exists
-  const existingUser = await getUser({
-    $or: [{
-      email: body.email
-    }, {
-      phoneNumber: body.phoneNumber
-    }]
-  });
-  if (existingUser) {
-    let message = "";
-    if (existingUser.email === body.email) {
-      message = "Email already exists";
+    //set auth cookie
+    setAuthCookie(res, result.token);
+
+    return res.status(201).json({
+      success: true,
+      message: "User successfully created",
+      data: result.newUser,
+    });
+  } catch (error) {
+    console.error("signup error:", error.message);
+
+    //don't expose sensitive error details in production
+    if (process.env.NODE_ENV === "production" && error.statusCode === 500) {
+      return next(new AppError("Internal server error", 500));
     }
-    if (existingUser.phoneNumber === body.phoneNumber) {
-      message = message ? "Both email and password already exists" : "Phone number already exists"
+
+    next(error);
+  }
+};
+
+//login user
+export const login = async (req, res, next) => {
+  try {
+    const { validatedBody: data } = req;
+
+    const result = await loginUser({ body: data });
+
+    //set auth cookie
+    setAuthCookie(res, result.token);
+
+    return res.status(200).json({
+      success: true,
+      message: "User successfully logged in",
+      data: result.user,
+      accessToken: result.token,
+    });
+  } catch (error) {
+    console.error("login error:", error.message);
+
+    //don't expose sensitive error details in production
+    if (process.env.NODE_ENV === "production" && error.statusCode === 500) {
+      return next(new AppError("Internal server error", 500));
     }
+
+    next(error);
   }
+};
 
-  //hash password
-  const hashedPassword = await encryptData(body.password);
+//logout user
+export const logout = async (req, res, next) => {
+  try {
+    clearAuthCookie(res);
 
-  //create new admin
-  const newSuperAdmin = await createUser({
-    ...body,
-    password: hashedPassword,
-    role: USER_TYPES.SUPERADMIN
-  });
+    return res.status(200).json({
+      success: true,
+      message: "User successfully logged out",
+    });
+  } catch (error) {
+    console.error("logout error:", error.message);
+    next(error);
+  }
+};
 
-  //create a token
-  const token = generateUserToken(newSuperAdmin);
-  //return created token as cookie to user
-  res.cookie("Token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    // sameSite: "strict",
-    maxAge: 604800000,
-  })
+//refresh token controller
+export const refreshToken = async (req, res, next) => {
+  try {
+    const { user } = req;
 
-  return res.status(201).json({
-    success: true,
-    message: "User successfully created",
-    data: newSuperAdmin,
-  });
-
-}
-
-//Create Admin
-const createAdmin = async (req, res) => {
-  const {
-    validatedBody: body
-  } = req;
-  body.email = body.email.toLowerCase();
-  
-  //assign default password if password key is missing
-  // if (!body.password) body.password = "user";
-
-  //Check if email and/or phone number already exists
-  const existingUser = await getUser({
-    $or: [{
-      email: body.email
-    }, {
-      phoneNumber: body.phoneNumber
-    }]
-  });
-  if (existingUser) {
-    let message = "";
-    if (existingUser.email === body.email) {
-      message = "Email already exists";
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
     }
-    if (existingUser.phoneNumber === body.phoneNumber) {
-      message = message ? "Both email and password already exists" : "Phone number already exists"
+
+    //generate new token
+    const result = await refreshUserToken(user);
+
+    //set new auth cookie
+    setAuthCookie(res, result.token);
+
+    return res.status(200).json({
+      success: true,
+      message: "Token refreshed successfully",
+      accessToken: result.token,
+    });
+  } catch (error) {
+    console.error("refresh token error:", error.message);
+    next(error);
+  }
+};
+
+//change password controller
+export const changePasswordCtrl = async (req, res, next) => {
+  try {
+    const { user } = req;
+    const { validatedBody: data } = req;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
     }
+
+    //ensure new password is different from current
+    if (data.currentPassword === data.newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be different from current password",
+      });
+    }
+
+    //change password
+    const result = await changePassword(user._id, data);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result.updatedUser,
+    });
+  } catch (error) {
+    console.error("Change password error:", error.message);
+    next(error);
   }
-
-  //hash password
-  const hashedPassword = await encryptData(body.password);
-
-  //create new admin
-  const newAdmin = await createUser({
-    ...body,
-    password: hashedPassword,
-    role: USER_TYPES.ADMIN
-  });
-
-  //create a token
-  const token = generateUserToken(newAdmin);
-  //return created token as cookie to user
-  res.cookie("Token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    // sameSite: "strict",
-    maxAge: 604800000,
-  })
-
-  return res.status(201).json({
-    success: true,
-    message: "User successfully created",
-    data: newAdmin,
-  });
-
-}
-
-
-//Login Admin
-const login = async (req, res) => {
-  const {
-   validatedBody: body
-  } = req;
-
-  //validate email
-  const user = await getUser({
-    email: body.email
-  });
-  if (!user) {
-    return res.status(400).json({
-      success: false,
-      message: "Email not found. Please signup",
-    })
-  }
-
-  //validate password
-  const isValid = await decryptData(body.password, user.password);
-  if (!isValid) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid Password",
-    })
-  }
-
-  //create token
-  const token = generateUserToken(user);
-  //pass token as cookie
-  res.cookie("Token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    // sameSite: "strict",
-    maxAge: 604800000,
-  });
-
-  return res.status(200).json({
-    success: true,
-    message: "User successfully logged in",
-    data: user,
-    accessToken: token,
-  });
-
-}
-
-
-//Logout Admin
-const logout = async(req, res) => {
-  res.cookie("Token", "", {
-    httpOnly: true,
-    expiresIn: new Date(0),
-    // maxAge: new Date(0),
-  });
-
-  return res.status(200).json({
-    success: true,
-    message: "User successfully logged out",
-  });
-}
-
-
-export { createSuperAdmin, createAdmin, login, logout };
+};

@@ -9,6 +9,11 @@ const userSchema = new Schema(
       trim: true,
     },
 
+    originalPublicIdBase: {
+      type: String,
+      required: true,
+    },
+
     email: {
       type: String,
       required: true,
@@ -27,6 +32,7 @@ const userSchema = new Schema(
       type: String,
       required: true,
       trim: true,
+      // select: false,
     },
 
     role: {
@@ -34,10 +40,37 @@ const userSchema = new Schema(
       required: true,
       enum: Object.values(USER_TYPES),
     },
+
+    profileImage: {
+      url: {
+        type: String,
+        required: true,
+      },
+      publicId: {
+        type: String,
+        required: true,
+      },
+    },
   },
   {
     versionKey: false,
     timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform(doc, ret) {
+        delete ret.password;
+        delete ret._id;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform(doc, ret) {
+        delete ret.password;
+        delete ret._id;
+        return ret;
+      },
+    },
   }
 );
 
