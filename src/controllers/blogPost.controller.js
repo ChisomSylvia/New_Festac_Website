@@ -28,12 +28,10 @@ export const createPostCtrl = async (req, res, next) => {
 //get all posts controller
 export const getAllPostsCtrl = async (req, res, next) => {
   try {
-    // const { validatedQuery: query } = req;
-    const { validatedQuery: validatedParams } = req;
+    const { validatedQuery: query } = req;
     const user = req.user || null;
 
-    //call the service function
-    const posts = await getAllPosts(validatedParams, user);
+    const posts = await getAllPosts(query, user);
 
     return res.status(200).json({
       success: true,
@@ -51,7 +49,11 @@ export const getAllPostsCtrl = async (req, res, next) => {
 //get post by ID or slug
 export const getPostCtrl = async (req, res, next) => {
   try {
-    const query = req.validatedQuery || req.validatedParams;
+    // // const query = { ...req.validatedParams }; //...removes null prototype. Returns a plain object
+    // const mongoQuery = query.id ? { _id: query.id } : query;
+    const { id, slug } = req.validatedParams;
+    const query = id ? { _id: id } : { slug };
+    
     const user = req.user || null;
 
     const post = await getPost(query, user);
@@ -71,18 +73,7 @@ export const getPostCtrl = async (req, res, next) => {
 export const updatePostCtrl = async (req, res, next) => {
   try {
     const { validatedBody: body } = req;
-    if (!body) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Missing validated body. Check request format or validation middleware.",
-      });
-    }
-
-    // const { user } = req;
-    const query = {
-      _id: req.params.id,
-    };
+    const query = { _id: req.validatedParams.id };
     const { file } = req;
 
     const updatedPost = await updatePost(query, body, file);
@@ -100,9 +91,7 @@ export const updatePostCtrl = async (req, res, next) => {
 
 export const deletePostCtrl = async (req, res, next) => {
   try {
-    const query = {
-      _id: req.params.id,
-    };
+    const query = { _id: req.validatedParams.id };
   
     const delPost = await deletePost(query);
   

@@ -7,7 +7,7 @@ import {
 import { AppError } from "../utils/appError.util.js";
 import { clearAuthCookie, setAuthCookie } from "../utils/dataCrypto.util.js";
 
-//create super-admin
+//create user
 export const signup = async (req, res, next) => {
   try {
     const { validatedBody: data } = req;
@@ -80,36 +80,7 @@ export const logout = async (req, res, next) => {
   }
 };
 
-//refresh token controller
-export const refreshToken = async (req, res, next) => {
-  try {
-    const { user } = req;
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "User not authenticated",
-      });
-    }
-
-    //generate new token
-    const result = await refreshUserToken(user);
-
-    //set new auth cookie
-    setAuthCookie(res, result.token);
-
-    return res.status(200).json({
-      success: true,
-      message: "Token refreshed successfully",
-      accessToken: result.token,
-    });
-  } catch (error) {
-    console.error("refresh token error:", error.message);
-    next(error);
-  }
-};
-
-//change password controller
+//change password
 export const changePasswordCtrl = async (req, res, next) => {
   try {
     const { user } = req;
@@ -140,6 +111,37 @@ export const changePasswordCtrl = async (req, res, next) => {
     });
   } catch (error) {
     console.error("Change password error:", error.message);
+    next(error);
+  }
+};
+
+//refresh token
+export const refreshToken = async (req, res, next) => {
+  try {
+    const {
+      user
+    } = req;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
+    //generate new token
+    const result = await refreshUserToken(user);
+
+    //set new auth cookie
+    setAuthCookie(res, result.token);
+
+    return res.status(200).json({
+      success: true,
+      message: "Token refreshed successfully",
+      accessToken: result.token,
+    });
+  } catch (error) {
+    console.error("refresh token error:", error.message);
     next(error);
   }
 };

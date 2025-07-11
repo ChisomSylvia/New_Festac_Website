@@ -4,101 +4,82 @@ import {
   getSubscribers,
   deleteSubscriber,
 } from "../services/subscribe.service.js";
-import {
-  sendSubscribedEmail
-} from "../utils/sendMail.util.js";
 
-export const createSubscriberCtrl = async (req, res) => {
-  const {
-    body
-  } = req;
-  body.email = body.email.toLowerCase();
+//create subscriber ctrl
+export const createSubscriberCtrl = async (req, res, next) => {
+  try {
+    const { validatedBody: body } = req;
 
-  const subscriber = await getSubscriber({
-    email: body.email
-  });
-  if (subscriber) {
-    return res.status(401).json({
-      success: false,
-      message: "You've already subscribed!",
-    });
-  }
+    const newSubscriber = await createSubscriber(body);
 
-  const newSubscriber = await createSubscriber(body);
-
-  const { email } = newSubscriber;
-
-  const emailResult = await sendSubscribedEmail (email);
-
-  if (!emailResult.success) {
-    console.error("Email notification failed", emailResult.message);
-    return res.status(500).json({
-      success: false,
-      message: "User subscribed but email motification failed",
+    return res.status(201).json({
+      success: true,
+      message: "A new subscriber created successfully!",
       data: newSubscriber,
-    })
-  }
-
-  return res.status(201).json({
-    success: true,
-    message: "A new subscriber created successfully!",
-    data: newSubscriber,
-  });
-};
-
-export const getSubscribersCtrl = async (req, res) => {
-  const subscribers = await getSubscribers();
-
-  if (subscribers.length === 0) {
-    return res.status(404).json({
-      success: false,
-      message: "Subscribers list is empty or have already been deleted!",
     });
-  }
+  } catch (error) {
+    console.error("createSubscriberCtrl error:", error.message);
 
-  return res.status(200).json({
-    success: true,
-    message: "Subscribers retrieved successfully!",
-    data: subscribers,
-  });
+    next(error);
+  }
 };
 
+//retrieve subscribers ctrl
+export const getSubscribersCtrl = async (req, res, next) => {
+  try {
+    const subscribers = await getSubscribers();
+
+    return res.status(200).json({
+      success: true,
+      message: "Subscribers retrieved successfully!",
+      count: subscribers.length,
+      data: subscribers,
+    });
+  } catch (error) {
+    console.error("getSubscribersCtrl error:", error.message);
+
+    next(error);
+  }
+};
+
+//retrieve a single subscriber ctrl
 export const getSubscriberCtrl = async (req, res) => {
-  const query = {
-    _id: req.params.id
-  };
+  try {
+    const query = {
+      _id: req.validatedParams.id,
+    };
 
-  const subscriber = await getSubscriber(query);
-  if (!subscriber) {
-    return res.status(404).json({
-      success: false,
-      message: "Subscriber not found or already deleted!",
+    const subscriber = await getSubscriber(query);
+
+    return res.status(200).json({
+      success: true,
+      message: "Subscriber retrieved successfully!",
+      data: subscriber,
     });
+  } catch (error) {
+    console.error("getSubscriberCtrl error:", error.message);
+
+    next(error);
   }
-  return res.status(200).json({
-    success: true,
-    message: "Subscriber retrieved successfully!",
-    data: subscriber,
-  });
 };
 
-export const deleteSubscriberCtrl = async (req, res) => {
-  const query = {
-    _id: req.params.id
-  };
+//delete subscriber ctrl
+export const deleteSubscriberCtrl = async (req, res, next) => {
+  try {
+    const query = {
+      _id: req.validatedParams.id,
+    };
 
-  const subscriber = await getSubscriber(query);
-  if (!subscriber) {
-    return res.status(404).json({
-      success: false,
-      message: "Subscriber not found or already deleted!",
+    const delSubscriber = await deleteSubscriber(query);
+
+    return res.status(200).json({
+      success: true,
+      message: "Subscriber deleted successfully!",
+      data: delSubscriber,
     });
-  }
+  } catch (error) {
+    console.error("deleteSubscriberCtrl error:", error.message);
 
-  const delSubscriber = await deleteSubscriber(query);
-  return res.status(200).json({
-    success: true,
-    message: "Subscriber deleted successfully!",
-    data: delSubscriber,
-  });
+    next(error);
+  }
 };

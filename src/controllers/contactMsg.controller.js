@@ -2,100 +2,84 @@ import {
   createMsg,
   getAllMsgs,
   getMsg,
-  deleteMsg
+  deleteMsg,
 } from "../services/contactMsg.service.js";
-import {
-  sendNotificationEmail
-} from "../utils/sendMail.util.js";
 
+//create message ctrl
+export const createMsgCtrl = async (req, res, next) => {
+  try {
+    const { validatedBody: body } = req;
 
-export const createMsgCtrl = async (req, res) => {
-  const {
-    body
-  } = req;
-  body.email = body.email.toLowerCase();
+    const newMessage = await createMsg(body);
 
-  const newMessage = await createMsg(body);
-  
-  const {
-    fullName,
-    email,
-    phoneNumber,
-    message
-  } = newMessage;
-
-  const emailResult = await sendNotificationEmail(fullName, email, phoneNumber, message);
-  if (!emailResult.success) {
-    console.error("Email notification failed", emailResult.message);
-    return res.status(500).json({
-      success: false,
-      message: "Message saved but email motification failed",
+    return res.status(201).json({
+      success: true,
+      message: "Message submitted and notification sent successfully",
       data: newMessage,
-    })
-  }
-  return res.status(201).json({
-    success: true,
-    message: "Message submitted and notification sent successfully",
-    data: newMessage,
-  });
-}
-
-export const getAllMsgsCtrl = async (req, res) => {
-  const messages = await getAllMsgs();
-
-  if (messages.length === 0) {
-    return res.status(404).json({
-      success: false,
-      message: "Message list is empty or have already been deleted!",
     });
+  } catch (error) {
+    console.error("createMsgCtrl error:", error.message);
+
+    next(error);
   }
+};
 
-  return res.status(200).json({
-    success: true,
-    message: "Messages retrieved successfully!",
-    data: messages,
-  });
-}
+//retrieve all messages ctrl
+export const getAllMsgsCtrl = async (req, res, next) => {
+  try {
+    const messages = await getAllMsgs();
 
-export const getMsgCtrl = async (req, res) => {
-  const query = {
-    _id: req.params.id
-  };
-
-  const message = await getMsg(query);
-
-  if (!message) {
-    return res.status(404).json({
-      success: false,
-      message: "Message not found or has already been deleted!",
+    return res.status(200).json({
+      success: true,
+      message: "Messages retrieved successfully!",
+      count: messages.length,
+      data: messages,
     });
+  } catch (error) {
+    console.error("getAllMsgsCtrl error:", error.message);
+
+    next(error);
   }
+};
 
-  return res.status(200).json({
-    success: true,
-    message: "Message retrieved successfully!",
-    data: message,
-  });
-}
+//retrieve single message ctrl
+export const getMsgCtrl = async (req, res, next) => {
+  try {
+    const query = {
+      _id: req.validatedParams.id,
+    };
 
-export const deleteMsgCtrl = async (req, res) => {
-  const query = {
-    _id: req.params.id
-  };
+    const message = await getMsg(query);
 
-  const message = await getMsg(query);
-  if (!message) {
-    return res.status(404).json({
-      success: false,
-      message: "Message not found or already deleted!",
+    return res.status(200).json({
+      success: true,
+      message: "Message retrieved successfully!",
+      data: message,
     });
+  } catch (error) {
+    console.error("getMsgCtrl error:", error.message);
+
+    next(error);
   }
+};
 
-  const delMessage = await deleteMsg(query);
+//delete message ctrl
+export const deleteMsgCtrl = async (req, res, next) => {
+  try {
+    const query = {
+      _id: req.validatedParams.id,
+    };
 
-  return res.status(200).json({
-    success: true,
-    message: "Message deleted successfully!",
-    data: delMessage,
-  });
-}
+    const delMessage = await deleteMsg(query);
+
+    return res.status(200).json({
+      success: true,
+      message: "Message deleted successfully!",
+      data: delMessage,
+    });
+  } catch (error) {
+    console.error("deleteMsgCtrl error:", error.message);
+
+    next(error);
+  }
+};

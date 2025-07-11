@@ -33,6 +33,7 @@ const setAuthCookie = (res, token) => {
   res.cookie("Token", token, cookieOptions);
 };
 
+//fxn to clear auth cookie
 const clearAuthCookie = (res) => {
   res.cookie("Token", "", {
     httpOnly: true,

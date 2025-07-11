@@ -17,7 +17,7 @@ const createPostSchema = Joi.object({
       "string.pattern.base": "must contain at least one alphanumeric character",
     }),
 
-  excerpt: Joi.string().max(300).required(),
+  excerpt: Joi.string().trim().max(300).required(),
 
   content: Joi.string().required(),
 
@@ -28,7 +28,7 @@ const createPostSchema = Joi.object({
 
   action: Joi.string()
     .valid(...Object.values(ACTIONS))
-    .optional(),
+    .required(),
 });
 
 //get all posts schema
@@ -53,7 +53,6 @@ const getAllPostsSchema = Joi.object({
 
 //get post schema
 const getPostSchema = Joi.object({
-  _id: Joi.string().hex().length(24), // MongoDB ObjectId format
   id: Joi.string().hex().length(24),
   slug: Joi.string()
     .trim()
@@ -63,7 +62,7 @@ const getPostSchema = Joi.object({
       "string.pattern.base":
         "Slug must be lowercase and hyphen-separated (e.g., my-post-title)",
     }),
-}).xor("_id", "id", "slug");
+}).xor("id", "slug");
 
 //update post schema
 const updatePostSchema = Joi.object({
@@ -89,10 +88,4 @@ const updatePostSchema = Joi.object({
     .required(),
 });
 
-//get post schema
-const deletePostSchema = Joi.object({
-  _id: Joi.string().hex().length(24), // MongoDB ObjectId format
-  id: Joi.string().hex().length(24),
-}).xor("_id", "id");
-
-export { createPostSchema, getAllPostsSchema, getPostSchema, updatePostSchema, deletePostSchema };
+export { createPostSchema, getAllPostsSchema, getPostSchema, updatePostSchema };

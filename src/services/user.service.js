@@ -17,7 +17,7 @@ export const createUser = async (data, file) => {
   try {
     //generate image permanent public ID base
     const publicIdBase = generatePublicIdBase();
-    data.originalPublicIdBase = publicIdBase;
+    data.publicIdBase = publicIdBase;
 
     //process profile image with permanent public ID
     let image = null;
@@ -27,10 +27,6 @@ export const createUser = async (data, file) => {
         image = await processImageUpload(file, publicIdBase, 0);
       } catch (error) {
         console.error("Failed to process image:", error);
-
-        await session.abortTransaction();
-
-        await cleanupTempUploads(file);
 
         throw new AppError("Image upload failed", 500);
       }
@@ -48,7 +44,7 @@ export const createUser = async (data, file) => {
 
     await cleanupTempUploads(file);
 
-    console.error("Error createUser:", error);
+    console.error("Error in createUser:", error);
     throw error;
   } finally {
     session.endSession();
@@ -102,8 +98,7 @@ export const updateUser = async (query, data, file) => {
     //handle image update within transaction
     if (file) {
       try {
-        //delete old image if new one is being uploaded
-        const publicIdBase = existingUser.originalPublicIdBase;
+        const publicIdBase = existingUser.publicIdBase;
         const existingImage = existingUser.profileImage;
 
         data.profileImage = await handleImageUpdate(
@@ -113,10 +108,6 @@ export const updateUser = async (query, data, file) => {
           0
         );
       } catch (imageError) {
-        await session.abortTransaction();
-
-        await cleanupTempUploads(file);
-
         throw new AppError(
           "Profile image update failed. User update was rolled back.",
           500
@@ -131,14 +122,7 @@ export const updateUser = async (query, data, file) => {
     })
 
     if (!updatedUser) {
-      await cleanupTempUploads(file);
       throw new AppError("User not updated", 400);
-    }
-
-    if (!updatedUser) {
-      await cleanupTempUploads(file);
-
-      throw new AppError("User update failed", 400);
     }
 
     await session.commitTransaction();
@@ -182,8 +166,6 @@ export const deleteUser = async (query) => {
       try {
         await deleteImage(publicId);
       } catch (cloudError) {
-        await session.abortTransaction();
-
         console.error("Cloudinary error:", cloudError.message);
 
         throw new AppError(

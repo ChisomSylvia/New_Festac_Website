@@ -105,7 +105,7 @@ const contactMsgHtml = (fullName, email, phoneNumber, message) => {
 </html>
 
 `;
-}
+};
 
 const subscribedHtml = () => {
   return `
@@ -189,19 +189,10 @@ const subscribedHtml = () => {
 </html>
 
 `;
-}
+};
 
-
+//send contact form notification message
 const sendNotificationEmail = async (fullName, email, phoneNumber, message) => {
-
-  // Validate inputs
-  if (!fullName || !email || !phoneNumber || !message) {
-    return {
-      success: false,
-      message: "Missing required fields",
-    };
-  };
-
   const html = contactMsgHtml(fullName, email, phoneNumber, message);
 
   const mailOptions = {
@@ -212,27 +203,21 @@ const sendNotificationEmail = async (fullName, email, phoneNumber, message) => {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent", info.messageId);
+    await transporter.sendMail(mailOptions);
 
     return {
       success: true,
       message: "Email sent successfully!",
     };
-
   } catch (error) {
     console.error("Email sending failed", error);
 
-    const message = error.message || "An unexpected error occurred";
-    return {
-      success: false,
-      message,
-    };
+    throw error;
   }
 };
 
+//send subscribed welcome email
 const sendSubscribedEmail = async (email) => {
-
   const html = subscribedHtml();
 
   const mailOptions = {
@@ -243,25 +228,17 @@ const sendSubscribedEmail = async (email) => {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent", info.messageId);
+    await transporter.sendMail(mailOptions);
 
     return {
       success: true,
       message: "Email sent successfully!",
     };
-
   } catch (error) {
     console.error("Email sending failed", error);
 
-    const message = error.message || "An unexpected error occurred";
-    return {
-      success: false,
-      message,
-    };
+    throw error;
   }
 };
 
-export {
-  sendNotificationEmail, sendSubscribedEmail
-};
+export { sendNotificationEmail, sendSubscribedEmail };

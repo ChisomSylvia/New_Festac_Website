@@ -5,48 +5,40 @@ import {
 } from "../configs/constants.config.js";
 
 const capitalizeWord = (word) => {
-  // Capitalizes the first letter and preserves the rest (for hyphens, apostrophes, etc.)
+  //capitalizes the first letter and preserves the rest (for hyphens, apostrophes, etc.)
   return word.charAt(0).toUpperCase() + word.slice(1);
 };
 
+//fxn to capitalize first letter of every word
 const intelligentTitleCase = (str) => {
-  const smallWords = new Set([
-    "a",
-    "an",
-    "and",
-    "as",
-    "at",
-    "but",
-    "by",
-    "for",
-    "in",
-    "nor",
-    "of",
-    "on",
-    "or",
-    "so",
-    "the",
-    "to",
-    "up",
-    "yet",
-  ]);
+  const smallWords = new Set([ "a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "so", "the", "to", "up", "yet" ]);
 
   return str
     .trim()
     .split(/\s+/)
     .map((word, index) => {
-      // Preserve acronyms like FG, USA, etc.
+      //preserve acronyms like FG, USA, etc.
       if (word === word.toUpperCase() && word.length <= 3) return word;
 
-      // Always capitalize first word
+      //always capitalize first word
       if (index === 0) return capitalizeWord(word);
 
-      // Lowercase small/common words
+      //lowercase small/common words
       if (smallWords.has(word.toLowerCase())) return word.toLowerCase();
 
       return capitalizeWord(word);
     })
     .join(" ");
+};
+
+//fxn to normalize title
+const normalizeTitle = (title) => {
+  return title
+    .toLowerCase()
+    .replace(/\s+/g, "-") //replaces spaces with hyphen
+    .replace(/[^\w-]/g, "") //removes special characters except hyphens
+    .replace(/-+/g, "-") //collapse multiple hyphens into one
+    .replace(/^-+|-+$/g, ""); //trim leading/trailing hyphens
 };
 
 //fxn to normalize an string to array
@@ -93,26 +85,10 @@ const calcPaginationMeta = (
   };
 };
 
-//fxn to build sort options
-const buildSortOptions = (
-  sortBy = SORT_FIELDS.PUBLISHED_AT,
-  sortOrder = SORT_ORDER.DESC
-) => {
-  const validSortFields = Object.values(SORT_FIELDS);
-  const validSortField = validSortFields.includes(sortBy)
-    ? sortBy
-    : SORT_FIELDS.PUBLISHED_AT;
-  const validSortOrder = sortOrder === SORT_ORDER.ASC ? 1 : -1;
-
-  return {
-    [validSortField]: validSortOrder,
-  };
-};
-
 export {
   intelligentTitleCase,
+  normalizeTitle,
   normalizeToArray,
   buildSearchQuery,
   calcPaginationMeta,
-  buildSortOptions,
 };

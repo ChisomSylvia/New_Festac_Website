@@ -10,7 +10,7 @@ const blogPostSchema = new Schema(
       unique: true,
     },
 
-    originalPublicIdBase: {
+    publicIdBase: {
       type: String,
       required: true,
     },
@@ -58,32 +58,24 @@ const blogPostSchema = new Schema(
       type: String,
       default: "1 min read",
     },
-
-    // author: {
-    //   type: Schema.Types.ObjectId,
-    //   ref: "user",
-    //   required: true,
-    // },
-
-    // tags: [
-    //   {
-    //     type: String,
-    //     enum: Object.values(TAGS),
-    //     default: null,
-    //   },
-    // ],
-
-    // views: {
-    //   type: Number,
-    //   default: 0,
-    // },
-    
   },
   {
     versionKey: false,
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toJSON: {
+      virtuals: true,
+      transform(doc, ret) {
+        delete ret._id;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform(doc, ret) {
+        delete ret._id;
+        return ret;
+      },
+    },
   }
 );
 

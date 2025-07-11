@@ -27,7 +27,7 @@ const updateUserSchema = Joi.object({
   name: Joi.string().trim().min(4).max(50).optional(),
   email: Joi.string().trim().email().lowercase().optional(),
   phoneNumber: Joi.string().pattern(PHONENO_PATTERN).optional(),
-}).min(1);
+});
 
 //change password schema
 const changePasswordSchema = Joi.object({

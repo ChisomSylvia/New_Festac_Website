@@ -6,7 +6,7 @@ import {
   deleteUser,
 } from "../services/user.service.js";
 
-//retrieve all users info
+//retrieve all users
 export const getAllUsersCtrl = async (req, res, next) => {
   try {
     const users = await getAllUsers();
@@ -23,7 +23,7 @@ export const getAllUsersCtrl = async (req, res, next) => {
   }
 };
 
-//retrieve user info
+//retrieve user
 export const getUserCtrl = async (req, res, next) => {
   try {
     const query = {

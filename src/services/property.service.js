@@ -46,7 +46,7 @@ export const createProperty = async (data, files) => {
 
     //generate permanent public ID base
     const publicIdBase = generatePublicIdBase();
-    uploadData.originalPublicIdBase = publicIdBase;
+    uploadData.publicIdBase = publicIdBase;
 
     //format fields
     uploadData.title = intelligentTitleCase(uploadData.title);
@@ -259,7 +259,7 @@ export const updateProperty = async (id, data, files) => {
     }
 
     //use original public ID base
-    const publicIdBase = existingProperty.originalPublicIdBase;
+    const publicIdBase = existingProperty.publicIdBase;
 
     //run action dependant modifications
     switch (action) {

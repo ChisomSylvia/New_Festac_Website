@@ -1,11 +1,9 @@
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import multer from "multer";
 import cloudinary from "./cloudinary.lib.js";
-// import { generatePublicIdBase } from "../services/file.service.js";
-import { normalizeTitle } from "../utils/blogPost.util.js";
+import { normalizeTitle } from "../utils/utils.js";
 import BlogPostModel from "../models/blogPost.model.js";
 import UserModel from "../models/user.model.js";
-// import PropertyModel from "../models/property.model.js";
 
 //profile image upload
 const profileImageStorage = new CloudinaryStorage({
@@ -62,7 +60,7 @@ const profileImageUpload = multer({
 const blogStorage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
-    title = req.body?.title;
+   let title = req.body?.title;
 
     // Fallback: title not sent, try to fetch from DB using ID in req.params
     if (!title && req.params?.id) {
@@ -125,13 +123,13 @@ const propertyStorage = new CloudinaryStorage({
     //increment file index for this request
     req.fileIndex = (req.fileIndex || 0) + 1;
 
-    // Create temp public ID using the consistent base
+    //create temp public ID using the consistent base
     const publicId = `temp-${req.uploadSessionId}-${fileIndex}`;
 
     return {
       folder: "festac-property-images",
       public_id: publicId,
-      overwrite: false, //don't overwrite during blogUpload
+      overwrite: false,
       allowed_formats: ["jpg", "jpeg", "png", "webp"],
       transformation: [
         {
@@ -155,7 +153,7 @@ const propertyUpload = multer({
     if (allowed.includes(file.mimetype)) cb(null, true);
     else cb(new Error("Only .jpeg, .png, or .webp images are allowed."));
   },
-}); //new added lines end
+});
 
 
 export { profileImageUpload, blogUpload, propertyUpload };

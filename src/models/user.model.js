@@ -9,7 +9,7 @@ const userSchema = new Schema(
       trim: true,
     },
 
-    originalPublicIdBase: {
+    publicIdBase: {
       type: String,
       required: true,
     },

@@ -1,26 +1,21 @@
+import mongoose from "mongoose";
 import BlogPostModel from "../models/blogPost.model.js";
 import { ACTIONS, STATUS, USER_TYPES } from "../configs/constants.config.js";
+import { intelligentTitleCase, normalizeTitle,  buildSearchQuery,  calcPaginationMeta, } from "../utils/utils.js";
 import {
-  normalizeTitle,
-  // titleCaseWithAcronyms,
   createSlug,
   calcReadTime,
   buildFilterQuery,
-  buildSearchQuery,
   buildSortOptions,
-  calcPaginationMeta,
-  intelligentTitleCase,
 } from "../utils/blogPost.util.js";
 import {
   handleImageUpdate,
-  // formatCloudinaryFile,
   deleteImage,
   generatePublicIdBase,
   processImageUpload,
   cleanupTempUploads,
 } from "../services/file.service.js";
 import { AppError } from "../utils/appError.util.js";
-import mongoose from "mongoose";
 
 //fxn to ensure unique slug
 const ensureUniqueSlug = async (slug) => {
@@ -29,7 +24,7 @@ const ensureUniqueSlug = async (slug) => {
 
   let exists;
   do {
-    exists = await _getBlogPost({
+    exists = await BlogPostModel.findOne({
       slug: uniqueSlug,
     });
     if (exists) {
@@ -40,128 +35,7 @@ const ensureUniqueSlug = async (slug) => {
   return uniqueSlug;
 };
 
-export const _getBlogPost = async (query) => {
-  const blogPost = await BlogPostModel.findOne(query);
-
-  if (!blogPost) {
-    return null;
-  }
-
-  return blogPost;
-};
-
 //create post service
-// export const createPost = async (data, file) => {
-//   const session = await mongoose.startSession();
-//   session.startTransaction();
-
-//   try {
-//     //extract action from data, default to save if not provided
-//     const { action = ACTIONS.SAVE, ...postData } = data;
-
-//     //validate action
-//     if (!Object.values(ACTIONS).includes(action)) {
-//       throw new AppError(
-//         `Invalid action. Must be one of ${Object.values(ACTIONS).join(", ")}`,
-//         400
-//       );
-//     }
-
-//     postData.title = intelligentTitleCase(postData.title);
-
-//     //create normalized titlelower from title
-//     postData.titleLower = normalizeTitle(postData.title);
-
-//     //check for duplicate title using titlelower before creating post
-//     let exists;
-//     try {
-//       exists = await _getBlogPost({
-//         titleLower: postData.titleLower,
-//       });
-//     } catch (err) {
-//       if (err.message === "Post not found") {
-//         exists = null;
-//       } else {
-//         throw new AppError(err.message || "Unknown server error", 500);
-//       }
-//     }
-//     // const exists = await _getBlogPost({
-//     //   titleLower,
-//     // }).catch(() => null);
-
-//     if (exists) {
-//       throw new AppError(
-//         "A similar post title already exists. Please use a different title",
-//         409
-//       );
-//     }
-
-//     // Always append ellipsis to excerpt if not already present
-//     if (!postData.excerpt.trim().endsWith("...")) {
-//       postData.excerpt = `${postData.excerpt.trim()}...`;
-//     }
-
-//     //run action dependent modifications
-//     switch (action) {
-//       case ACTIONS.PUBLISH:
-//         const baseSlug = createSlug(postData.title);
-//         postData.slug = await ensureUniqueSlug(baseSlug);
-//         postData.status = STATUS.PUBLISHED;
-//         postData.publishedAt = new Date();
-//         postData.readTime = calcReadTime(postData.content);
-//         break;
-//       case ACTIONS.ARCHIVE:
-//         postData.status = STATUS.ARCHIVED;
-//         break;
-//       default:
-//         postData.status = STATUS.DRAFT;
-//         postData.publishedAt = null;
-//     }
-
-//     // if (action === ACTIONS.PUBLISH) {
-//     //   //1. generate slug from title
-//     //   const baseSlug = createSlug(postData.title);
-//     //   postData.slug = await ensureUniqueSlug(baseSlug);
-//     //   //2. set status to published, date to current date, and readtime
-//     //   postData.status = STATUS.PUBLISHED;
-//     //   postData.publishedAt = new Date();
-//     //   postData.readTime = calcReadTime(postData.content);
-//     // } else if (action === ACTIONS.ARCHIVE) {
-//     //   postData.status = STATUS.ARCHIVED;
-//     // } else {
-//     //   postData.status = STATUS.DRAFT;
-//     //   postData.publishedAt = null;
-//     //   postData.slug = null;
-//     // }
-//     // const featuredImage = file ? formatCloudinaryFile(file) : null;
-
-//     postData.featuredImage = file ? formatCloudinaryFile(file) : null;
-
-//     //create blog post in database
-//     const newBlogPost = await BlogPostModel.create([postData], { session });
-//     await session.commitTransaction();
-//     session.endSession();
-
-//     //determine the right message to send
-//     const message =
-//       action === ACTIONS.PUBLISH
-//         ? "Blog post published successfully"
-//         : action === ACTIONS.ARCHIVE
-//         ? "Blog post archived"
-//         : "Blog post saved as draft";
-
-//     return {
-//       data: newBlogPost[0],
-//       message,
-//     };
-//   } catch (error) {
-//     await session.abortTransaction();
-//     session.endSession();
-//     console.error("Error in createPost:", error);
-//     throw error;
-//   }
-// };
-
 export const createPost = async (data, file) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -170,48 +44,23 @@ export const createPost = async (data, file) => {
     //extract action from data, default to save if not provided
     const { action = ACTIONS.SAVE, ...postData } = data;
 
-    //validate action
-    if (!Object.values(ACTIONS).includes(action)) {
-      throw new AppError(
-        `Invalid action. Must be one of ${Object.values(ACTIONS).join(", ")}`,
-        400
-      );
-    }
-
     //generate permanent public ID base
     const publicIdBase = generatePublicIdBase();
-    postData.originalPublicIdBase = publicIdBase;
+    postData.publicIdBase = publicIdBase;
 
+    //capitalize first letter of every word
     postData.title = intelligentTitleCase(postData.title);
 
     //create normalized titlelower from title
     postData.titleLower = normalizeTitle(postData.title);
 
     //check for duplicate title using titlelower before creating post
-    let exists;
-    try {
-      exists = await _getBlogPost({
-        titleLower: postData.titleLower,
-      });
-    } catch (err) {
-      if (err.message === "Post not found") {
-        exists = null;
-      } else {
-        throw new AppError(err.message || "Unknown server error", 500);
-      }
-    }
-    // const exists = await _getBlogPost({
-    //   titleLower,
-    // }).catch(() => null);
-
+    const exists = await BlogPostModel.findOne({ titleLower: postData.titleLower }).session(session);
     if (exists) {
-      throw new AppError(
-        "A similar post title already exists. Please use a different title",
-        409
-      );
+      throw new AppError( "A similar post title already exists. Please use a different title", 409 );
     }
 
-    // Always append ellipsis to excerpt if not already present
+    //always append ellipsis to excerpt if not already present
     if (!postData.excerpt.trim().endsWith("...")) {
       postData.excerpt = `${postData.excerpt.trim()}...`;
     }
@@ -240,13 +89,6 @@ export const createPost = async (data, file) => {
       try {
         image = await processImageUpload(file, publicIdBase, 0);
       } catch (error) {
-        console.error("Failed to process image:", error);
-
-        await session.abortTransaction();
-        session.endSession();
-
-        await cleanupTempUploads(file);
-
         throw new AppError("Image upload failed", 500);
       }
 
@@ -254,11 +96,9 @@ export const createPost = async (data, file) => {
     }
 
     //create blog post in database
-    const newBlogPost = await BlogPostModel.create([postData], {
-      session,
-    });
+    const newBlogPost = await BlogPostModel.create([postData], { session });
+
     await session.commitTransaction();
-    session.endSession();
 
     //determine the right message to send
     const message =
@@ -274,21 +114,22 @@ export const createPost = async (data, file) => {
     };
   } catch (error) {
     await session.abortTransaction();
-    session.endSession();
 
     await cleanupTempUploads(file);
 
     console.error("Error in createPost:", error);
     throw error;
+  } finally {
+    session.endSession();
   }
 };
 
 //get all posts service with or without queryfilters
-export const getAllPosts = async (validatedParams, user = null) => {
+export const getAllPosts = async (query, user = null) => {
   try {
-    const filterQuery = buildFilterQuery(validatedParams, user);
+    const filterQuery = buildFilterQuery(query, user);
     const searchQuery = buildSearchQuery({
-      keyword: validatedParams.keyword,
+      keyword: query.keyword,
     });
 
     const combinedQuery = {
@@ -297,43 +138,43 @@ export const getAllPosts = async (validatedParams, user = null) => {
     };
 
     const sortOptions = buildSortOptions(
-      validatedParams.sortBy,
-      validatedParams.sortOrder
+      query.sortBy,
+      query.sortOrder
     );
 
-    const skip = (validatedParams.page - 1) * validatedParams.limit;
+    const skip = (query.page - 1) * query.limit;
 
-    const sort = validatedParams.keyword
+    const sort = query.keyword
       ? { score: { $meta: "textScore" }, ...sortOptions }
       : sortOptions;
 
-    const projection = validatedParams.keyword
+    const projection = query.keyword
       ? { score: { $meta: "textScore" } }
       : {};
 
     const blogPosts = await BlogPostModel.find(combinedQuery, projection)
       .sort(sort)
       .skip(skip)
-      .limit(validatedParams.limit)
+      .limit(query.limit)
       .lean({ virtuals: true });
 
     const total = await BlogPostModel.countDocuments(combinedQuery);
 
     const paginationMeta = calcPaginationMeta(
       total,
-      validatedParams.page,
-      validatedParams.limit
+      query.page,
+      query.limit
     );
 
     return {
       blogPosts,
       pagination: paginationMeta,
       appliedFilters: {
-        status: validatedParams.status,
-        search: validatedParams.keyword,
+        status: query.status,
+        search: query.keyword,
         sort: {
-          field: validatedParams.sortBy,
-          order: validatedParams.sortOrder,
+          field: query.sortBy,
+          order: query.sortOrder,
         },
       },
     };
@@ -343,34 +184,15 @@ export const getAllPosts = async (validatedParams, user = null) => {
   }
 };
 
-//get a single post using either ID and slug
-export const getPost = async (filters = {}, user = null) => {
+//get a single post using either ID or slug
+export const getPost = async (query, user = null) => {
   try {
-    const { _id, id, slug } = filters;
+    const blogPost = await BlogPostModel.findOne(query);
 
-    //prevent both id & _id use at the same time
-    if (id && _id) {
-      throw new AppError("Provide either 'id' or '_id', not both", 400);
-    }
+    console.log("Query", query);
 
-    const mongoId = id || _id;
-
-    let blogPost;
-
-    if (mongoId) {
-      blogPost = await BlogPostModel.findById(mongoId);
-      if (!blogPost) {
-        throw new AppError(`Blog post not found with ID: ${mongoId}`, 404);
-      }
-    } else if (slug) {
-      blogPost = await BlogPostModel.findOne({
-        slug,
-      });
-      if (!blogPost) {
-        throw new AppError(`Blog post not found with slug: ${slug}`, 404);
-      }
-    } else {
-      throw new AppError("Either a valid ID or slug must be provided.", 400);
+    if (!blogPost) {
+      throw new AppError("Blog post not found", 404)
     }
 
     //exclude draft/unpublished posts for unauthenticated users
@@ -396,41 +218,26 @@ export const updatePost = async (query, updateData, file) => {
   try {
     const { action, ...postData } = updateData;
 
-    //check if post is existing first
+    //check if post exists in the db
     const existingPost = await BlogPostModel.findOne(query).session(session);
     if (!existingPost) {
       throw new AppError("Post not found", 404);
     }
 
-    //validate action
-    if (!Object.values(ACTIONS).includes(action)) {
-      throw new AppError(
-        `Invalid action. Must be one of ${Object.values(ACTIONS).join(", ")}`,
-        400
-      );
-    }
-
     //use original public ID base
-    const publicIdBase = existingPost.originalPublicIdBase;
+    const publicIdBase = existingPost.publicIdBase;
 
     //normalize title and check for duplicates
     if (postData.title) {
       postData.title = intelligentTitleCase(postData.title);
       postData.titleLower = normalizeTitle(postData.title);
-      const exists = await _getBlogPost({
+      const exists = await BlogPostModel.findOne({
         titleLower: postData.titleLower,
         _id: {
           $ne: query._id,
         }, // exclude current post from duplicate check
-      });
-      console.log(
-        "Checking duplicate for:",
-        postData.titleLower,
-        "excluding:",
-        query._id
-      );
+      }).session(session);
       if (exists) {
-        console.log("Found duplicate post ID:", exists._id);
         throw new AppError(
           "A similar post title already exists. Please use a different title",
           409
@@ -467,7 +274,6 @@ export const updatePost = async (query, updateData, file) => {
     //handle image update within transaction safe log
     if (file) {
       try {
-        //delete old image if new one is being uploaded
         const existingImage = existingPost.featuredImage;
 
         postData.featuredImage = await handleImageUpdate(
@@ -477,13 +283,8 @@ export const updatePost = async (query, updateData, file) => {
           0
         );
       } catch (imageError) {
-        await session.abortTransaction();
-        session.endSession();
-
-        await cleanupTempUploads(file);
-
         throw new AppError(
-          "Image update failed. Blog update was rolled back.",
+          "Image update failed. Rollback activated.",
           500
         );
       }
@@ -496,25 +297,25 @@ export const updatePost = async (query, updateData, file) => {
     );
 
     if (!updatedBlogPost) {
-      await cleanupTempUploads(file);
       throw new AppError("Post not updated", 400);
     }
 
     await session.commitTransaction();
-    session.endSession();
 
     return updatedBlogPost;
   } catch (error) {
     await session.abortTransaction();
-    session.endSession();
 
     await cleanupTempUploads(file);
 
     console.error("Error updating blog post:", error);
     throw error;
+  } finally {
+    session.endSession();
   }
 };
 
+//delete post plus image from cloudinary
 export const deletePost = async (query) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -537,62 +338,24 @@ export const deletePost = async (query) => {
     if (publicId) {
       try {
         await deleteImage(publicId);
-      } catch (cloudError) {
-        // Rollback DB deletion if image deletion fails
-        await session.abortTransaction();
-        session.endSession();
-        console.error("Cloudinary error:", cloudError.message);
+      } catch (cloudError) {      
         throw new AppError(
-          "Image deletion failed. Blog post deletion was rolled back.",
+          "Image deletion failed. Rollback activated.",
           500
         );
       }
     }
 
-    // Commit the transaction
+    //commit the transaction
     await session.commitTransaction();
-    session.endSession();
 
     return delBlogPost;
   } catch (error) {
     await session.abortTransaction();
-    session.endSession();
+
     console.error("Error deleting blog post:", error.message);
     throw error;
+  } finally {
+    session.endSession();
   }
 };
-
-// export const deletePost = async (query) => {
-//   try {
-//     const exists = await getPost(query);
-//     if (!exists) {
-//       throw new AppError("Post not found", 404);
-//     }
-
-//     const delBlogPost = await BlogPostModel.findOneAndDelete(query);
-//     if (!delBlogPost) {
-//       throw new AppError("Post not found", 404);
-//     }
-
-//     const publicId = exists.featuredImage?.publicId;
-//     if (publicId) {
-//       await deleteImage(publicId);
-//     }
-
-//     return delBlogPost;
-//   } catch (error) {
-//     console.error("Error deleting blog post:", error.message);
-//     throw error;
-//   }
-// };
-
-// export const incrementViews = async (query) => {
-//   const updatedBlogPost = await BlogPostModel.findOneAndUpdate(query, {
-//     $inc: {
-//       views: 1
-//     }
-//   }, {
-//     new: true
-//   });
-//   return updatedBlogPost;
-// };

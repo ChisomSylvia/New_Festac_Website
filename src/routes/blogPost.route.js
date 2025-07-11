@@ -14,10 +14,9 @@ import {
   getAllPostsSchema,
   getPostSchema,
   updatePostSchema,
-  deletePostSchema,
 } from "../schemas/blogPost.schema.js";
+import { objectIdSchema } from "../schemas/schemas.js";
 import { authenticate, optionalAuth } from "../middlewares/auth.middleware.js";
-// import remapParamToQuery from "../middlewares/remap.middleware.js";
 import { USER_TYPES } from "../configs/constants.config.js";
 
 
@@ -72,6 +71,7 @@ router.patch(
   blogUpload.single("featuredImage"),
   validate({
     body: updatePostSchema,
+    params: objectIdSchema,
   }),
   updatePostCtrl
 );
@@ -81,7 +81,7 @@ router.delete(
   "/delete/:id",
   authenticate([USER_TYPES.SUPERADMIN, USER_TYPES.ADMIN]),
   validate({
-    params: deletePostSchema,
+    params: objectIdSchema,
   }),
   deletePostCtrl
 );

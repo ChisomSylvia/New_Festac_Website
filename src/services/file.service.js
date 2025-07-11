@@ -2,7 +2,7 @@ import cloudinary from "../libs/cloudinary.lib.js";
 import { AppError } from "../utils/appError.util.js";
 import { v4 as uuidv4 } from "uuid";
 
-//generate permanent public ID when property is created
+//generate permanent public ID
 export const generatePublicIdBase = () => {
   const timestamp = Date.now();
   const uuid = uuidv4().substring(0, 8);
@@ -19,9 +19,6 @@ export const formatCloudinaryFile = (file) => {
 
   const url = file.secure_url || file.path;
   const publicId = file.filename;
-
-  // const url = `${file?.path}?v=${Date.now()}`;
-  // const publicId = file?.filename;
 
   return {
     url,
@@ -46,56 +43,41 @@ export const renameCloudinaryImage = async (tempPublicId, finalPublicId) => {
       publicId: result.public_id,
     };
   } catch (error) {
-    console.error("Failed to rename Cloudinary image:", error);
-    // Clean up temp file if rename fails
+    console.error("renameCloudinaryImage failed:", error.message);
+
+    //clean up temp file if rename fails
     await deleteImage(tempPublicId).catch(console.error);
+
     throw new AppError("Image processing failed", 500);
   }
 };
 
-//process uploaded image from multer for property creation with permanent ID
-export const processImageUpload = async (
-  file,
-  publicIdBase,
-  index,
-  // uploadedPublicIds = []
-) => {
+//process uploaded image from multer with permanent ID
+export const processImageUpload = async (file, publicIdBase, index) => {
   if (!file) return null;
 
   let tempPublicId = null;
 
   try {
     const tempImage = formatCloudinaryFile(file);
-    
+
     if (!tempImage || !tempImage.publicId || !tempImage.url) {
       throw new AppError("Invalid file upload", 400);
     }
 
     tempPublicId = tempImage.publicId;
 
-    //use permanent public ID base
+    //create permanent public ID
     const finalPublicId = `${publicIdBase}-${index}`;
-
-    // uploadedPublicIds.push(finalPublicId); // track for cleanup
 
     //rename from temp to final public ID
     const finalImage = await renameCloudinaryImage(tempPublicId, finalPublicId);
 
     return finalImage;
   } catch (error) {
-    // // Clean up on failure
-    // if (uploadedPublicIds.length > 0) {
-    //   if (finalPublicId) {
-    //     try {
-    //       await deleteImage(finalPublicId);
-    //       console.log("Rolled back renamed image:", finalPublicId);
-    //     } catch (cleanupError) {
-    //       console.error("Failed to cleanup renamed image:", cleanupError);
-    //     }
-    //   }
-    // }
     console.error("processImageUpload failed:", error.message);
-    throw error;
+
+    throw new AppError("Image processing failed", 500);
   }
 };
 
@@ -105,26 +87,22 @@ export const handleImageUpdate = async (
   existingImage,
   publicIdBase,
   targetIndex
-  // uploadedPublicIds = []
 ) => {
   console.log("Incoming file in handleImageUpdate:", file);
 
   if (!file) return existingImage;
 
-  //create the target public ID
+  //create permanent public ID
   const targetPublicId = `${publicIdBase}-${targetIndex}`;
 
   let tempImagePublicId = null;
 
   try {
-    //check if this file was already uploaded by multer/formatCloudinaryFile
+    //check if this file was already uploaded by multer
     if (file.filename) {
-      // File is already on Cloudinary with temp publicId
       tempImagePublicId = file.filename;
-
-      // // Rename the existing temp image to target publicId
-      // uploadedPublicIds.push(targetPublicId); // track for cleanup
-
+      
+      //rename the existing temp image publicId to target publicId
       const finalImage = await renameCloudinaryImage(
         tempImagePublicId,
         targetPublicId
@@ -135,17 +113,16 @@ export const handleImageUpdate = async (
       return finalImage;
     }
   } catch (error) {
-    console.error("handleImageUpdate failed:", error);
+    console.error("handleImageUpdate failed:", error.message);
     throw new AppError("Image update failed", 500);
   }
 };
 
-//handle image append using original public ID base
+//handle image append using public ID base
 export const handleImageAppend = async (
   file,
   publicIdBase,
   nextIndex
-  // uploadedPublicIds = []
 ) => {
   if (!file) return null;
 
@@ -162,15 +139,13 @@ export const handleImageAppend = async (
     //use permanent public ID base
     const finalPublicId = `${publicIdBase}-${nextIndex}`;
 
-    // uploadedPublicIds.push(finalPublicId); // track for cleanup
-
     //rename to final public ID
     const finalImage = await renameCloudinaryImage(tempPublicId, finalPublicId);
 
     return finalImage;
   } catch (error) {
     console.error("handleImageAppend failed:", error.message);
-    throw error;
+    throw new AppError("Image processing failed", 500);
   }
 };
 
@@ -186,7 +161,7 @@ export const deleteImage = async (publicId) => {
     console.log("cloudinary deletion result:", result);
     return result;
   } catch (error) {
-    console.error("cloudinary deletion failed:", error.message);
+    console.error("deleteImage failed:", error.message);
     throw new AppError("Image deletion failed", 500);
   }
 };

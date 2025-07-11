@@ -3,12 +3,10 @@ import {
   encryptData,
   generateUserToken,
 } from "../utils/dataCrypto.util.js";
-import { createUser, getUser, updateUser } from "./user.service.js";
+import { createUser, getUser } from "./user.service.js";
 import { AppError } from "../utils/appError.util.js";
 import UserModel from "../models/user.model.js";
 import { cleanupTempUploads } from "./file.service.js";
-import { USER_TYPES } from "../configs/constants.config.js";
-// import { USER_TYPES } from "../configs/constants.config.js";
 
 //createUser service
 export const signupUser = async (data, file) => {
@@ -91,19 +89,6 @@ export const loginUser = async (data) => {
   }
 };
 
-//refresh user token
-export const refreshUserToken = async (user) => {
-  try {
-    //generate new token
-    const token = generateUserToken(user);
-
-    return { token };
-  } catch (error) {
-    console.error("Error in refreshUserToken:", error);
-    throw error;
-  }
-};
-
 //change user password
 export const changePassword = async (userId, data) => {
   try {
@@ -141,6 +126,21 @@ export const changePassword = async (userId, data) => {
     };
   } catch (error) {
     console.error("error in changePassword:", error);
+    throw error;
+  }
+};
+
+//refresh user token
+export const refreshUserToken = async (user) => {
+  try {
+    //generate new token
+    const token = generateUserToken(user);
+
+    return {
+      token
+    };
+  } catch (error) {
+    console.error("Error in refreshUserToken:", error);
     throw error;
   }
 };
