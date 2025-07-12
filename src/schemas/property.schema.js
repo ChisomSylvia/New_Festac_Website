@@ -40,9 +40,9 @@ const createPropertySchema = Joi.object({
   Joi.string().valid(...Object.values(CATEGORY))
   ).required(),
 
-  type: Joi.string()
-    .valid(...Object.values(TYPE))
-    .required(),
+  // type: Joi.string()
+  //   .valid(...Object.values(TYPE))
+  //   .required(),
 
   // image: Joi.array()
   //   .items(
@@ -108,11 +108,6 @@ const getAllPropertiesSchema = Joi.object({
     .default(PAGINATION.DEFAULT_LIMIT),
 });
 
-//get property schema
-const getPropertySchema = Joi.object({
-  id: Joi.string().hex().length(24).required(),
-});
-
 //update property schema
 const updatePropertySchema = Joi.object({
   title: Joi.string()
@@ -143,9 +138,9 @@ const updatePropertySchema = Joi.object({
     Joi.string().valid(...Object.values(CATEGORY))
   ).optional(),
 
-  type: Joi.string()
-    .valid(...Object.values(TYPE))
-    .optional(),
+  // type: Joi.string()
+  //   .valid(...Object.values(TYPE))
+  //   .optional(),
 
   // image: Joi.array()
   //   .items(
@@ -187,6 +182,5 @@ const updatePropertySchema = Joi.object({
 export {
   createPropertySchema,
   getAllPropertiesSchema,
-  getPropertySchema,
   updatePropertySchema,
 };

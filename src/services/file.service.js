@@ -15,7 +15,7 @@ export const formatCloudinaryFile = (file) => {
     return null;
   }
 
-  console.log("File incoming in formatCloudinaryFile", file);
+  // console.log("File incoming in formatCloudinaryFile", file);
 
   const url = file.secure_url || file.path;
   const publicId = file.filename;
@@ -88,7 +88,7 @@ export const handleImageUpdate = async (
   publicIdBase,
   targetIndex
 ) => {
-  console.log("Incoming file in handleImageUpdate:", file);
+  // console.log("Incoming file in handleImageUpdate:", file);
 
   if (!file) return existingImage;
 

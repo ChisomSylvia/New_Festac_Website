@@ -45,7 +45,7 @@ const validate = (schemas) => async (req, res, next) => {
         const files = getUploadedFiles(req);
         await rollbackCloudinaryTempUploads(files);
 
-        console.log("Files uploaded", files);
+        // console.log("Files uploaded", files);
         
         const formattedErrors = error.details.map((detail) => ({
           field: detail.path.join("."),

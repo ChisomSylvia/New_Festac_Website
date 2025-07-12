@@ -34,7 +34,6 @@ router.get(
   "/:id",
   optionalAuth,
   validate({
-    // params: getPropertySchema,
     params: objectIdSchema,
   }),
   getPropertyCtrl

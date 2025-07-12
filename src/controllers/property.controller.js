@@ -29,21 +29,18 @@ export const createPropertyCtrl = async (req, res, next) => {
 //get all properties controller
 export const getAllPropertiesCtrl = async (req, res, next) => {
   try {
-    // const { validatedQuery: query } = req;
-    const { validatedQuery: validatedParams } = req;
+    const { validatedQuery: query } = req;
     const user = req.user || null;
 
-    //call the service function
-    const properties = await getAllProperties(validatedParams, user);
+    const result = await getAllProperties(query, user);
 
     return res.status(200).json({
       success: true,
-      message: `Found ${properties.properties.length} properties`,
-      data: properties.properties,
-      total: properties.pagination,
-      // totalData,
-      pagination: properties.pagination,
-      filters: properties.appliedFilters,
+      message: `Found ${result.properties.length} properties`,
+      data: result.properties,
+      total: result.pagination,
+      pagination: result.pagination,
+      filters: result.appliedFilters,
     });
   } catch (error) {
     console.error("getAllPropertiesCtrl Error:", error.message);
@@ -54,11 +51,13 @@ export const getAllPropertiesCtrl = async (req, res, next) => {
 //get property controller
 export const getPropertyCtrl = async (req, res, next) => {
   try {
-    const { id } = req.validatedParams;
-    console.log("ID", id);
-    
+    // const { id } = req.validatedParams;
+    const query = {
+      _id: req.validatedParams.id,
+    };
+    // console.log("ID", query);
 
-    const property = await getProperty(id);
+    const property = await getProperty(query);
 
     return res.status(200).json({
       success: true,
@@ -74,12 +73,13 @@ export const getPropertyCtrl = async (req, res, next) => {
 //update property controller
 export const updatePropertyCtrl = async (req, res, next) => {
   try {
-    // const { validatedParams: id } = req;
-    const { id } = req.validatedParams;
+    const query = {
+      _id: req.validatedParams.id,
+    };
     const { validatedBody: data } = req;
     const { files } = req;
 
-    const updatedProperty = await updateProperty(id, data, files);
+    const updatedProperty = await updateProperty(query, data, files);
 
     return res.status(200).json({
       success: true,
@@ -95,10 +95,11 @@ export const updatePropertyCtrl = async (req, res, next) => {
 //update property status controller
 export const updatePropStatusCtrl = async (req, res, next) => {
   try {
-    // const { validatedParams: id } = req; //id here is an object not a string
-    const { id } = req.validatedParams;
+    const query = {
+      _id: req.validatedParams.id,
+    };
 
-    const updatedStatus = await updatePropStatus(id);
+    const updatedStatus = await updatePropStatus(query);
 
     return res.status(200).json({
       success: true,
@@ -114,9 +115,11 @@ export const updatePropStatusCtrl = async (req, res, next) => {
 //delete property controller
 export const deletePropertyCtrl = async (req, res, next) => {
   try {
-    const { id } = req.validatedParams;
+    const query = {
+      _id: req.validatedParams.id,
+    };
 
-    const deletedProperty = await deleteProperty(id);
+    const deletedProperty = await deleteProperty(query);
 
     return res.status(200).json({
       success: true,

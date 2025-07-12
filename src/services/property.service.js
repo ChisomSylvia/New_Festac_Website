@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Query } from "mongoose";
 import PropertyModel from "../models/property.model.js";
 import { PROP_ACTION, PROP_STATUS } from "../configs/constants.config.js";
 import {
@@ -17,14 +17,6 @@ import {
 } from "../utils/utils.js";
 import { AppError } from "../utils/appError.util.js";
 
-const validateImageIndex = (index, arrayLength, operation = "operation") => {
-  const idx = parseInt(index);
-  if (isNaN(idx) || idx < 0 || idx >= arrayLength) {
-    throw new AppError(`Invalid image index for ${operation}: ${index}`, 400);
-  }
-  return idx;
-};
-
 //update property
 export const createProperty = async (data, files) => {
   const session = await mongoose.startSession();
@@ -36,10 +28,6 @@ export const createProperty = async (data, files) => {
   if (imageFiles.length === 0) {
     throw new AppError("At least one valid image is required.", 400);
   }
-
-
-  //track all uploaded image publicIds for cleanup on failure
-  // const uploadedPublicIds = [];
 
   try {
     const { action, ...uploadData } = data;
@@ -69,23 +57,19 @@ export const createProperty = async (data, files) => {
     //process images with permanent public ID base
     const processedImages = await Promise.allSettled(
       imageFiles.map((file, index) =>
-        processImageUpload(
-          file, 
-          publicIdBase, 
-          index, 
-          // uploadedPublicIds
-        )
+        processImageUpload(file, publicIdBase, index)
       )
     );
 
     //filter successful uploads and handle failures
-    const successfulImages = [];
+    const successfulUploads = [];
     const failedUploads = [];
 
     processedImages.forEach((result, index) => {
       if (result.status === "fulfilled" && result.value) {
-        successfulImages.push(result.value);
-        console.log("Successful processed images", result.value);
+        successfulUploads.push(result.value);
+
+        console.log("Successful processed images", result.value.publicId);
       } else {
         failedUploads.push(index);
         console.error(
@@ -95,7 +79,7 @@ export const createProperty = async (data, files) => {
       }
     });
 
-    if (successfulImages.length === 0) {
+    if (successfulUploads.length === 0) {
       throw new AppError("All image uploads failed", 500);
     }
 
@@ -105,14 +89,11 @@ export const createProperty = async (data, files) => {
       );
     }
 
-    uploadData.images = successfulImages;
+    uploadData.images = successfulUploads;
 
-    const newProperty = await PropertyModel.create([uploadData], {
-      session,
-    });
+    const newProperty = await PropertyModel.create([uploadData], { session });
 
     await session.commitTransaction();
-    session.endSession();
 
     const message =
       action === PROP_ACTION.PUBLISH
@@ -126,29 +107,22 @@ export const createProperty = async (data, files) => {
   } catch (error) {
     //rollback on error
     await session.abortTransaction();
-    session.endSession();
 
     await cleanupTempUploads(imageFiles);
 
-    // if (imageFiles.length > 0) {
-    //   for (const file of imageFiles) {
-    //     if (file?.filename) {
-    //       await deleteImage(file.filename).catch(console.error);
-    //     }
-    //   }
-    // }
-
     console.error("Error creating property:", error);
     throw error;
+  } finally {
+    session.endSession();
   }
 };
 
 //get all properties from db
-export const getAllProperties = async (validatedParams, user = null) => {
+export const getAllProperties = async (query, user = null) => {
   try {
-    const filterQuery = buildFilterQuery(validatedParams, user);
+    const filterQuery = buildFilterQuery(query, user);
     const searchQuery = buildSearchQuery({
-      keyword: validatedParams.keyword,
+      keyword: query.keyword,
     });
 
     const combinedQuery = {
@@ -156,48 +130,43 @@ export const getAllProperties = async (validatedParams, user = null) => {
       ...searchQuery,
     };
 
-    const sortOptions = buildSortOptions(
-      validatedParams.sortBy,
-      validatedParams.sortOrder
-    );
+    const sortOptions = buildSortOptions(query.sortBy, query.sortOrder);
 
-    const skip = (validatedParams.page - 1) * validatedParams.limit;
+    const skip = (query.page - 1) * query.limit;
 
-    const sort = validatedParams.keyword
+    const sort = query.keyword
       ? { score: { $meta: "textScore" }, ...sortOptions }
       : sortOptions;
 
-    const projection = validatedParams.keyword
-      ? { score: { $meta: "textScore" } }
-      : {};
+    const projection = query.keyword ? { score: { $meta: "textScore" } } : {};
 
     const properties = await PropertyModel.find(combinedQuery, projection)
       .sort(sort)
       .skip(skip)
-      .limit(validatedParams.limit)
+      .limit(query.limit)
       .lean({ virtuals: true });
+
+    if (properties.length === 0) {
+      throw new AppError("No properties found!", 404);
+    }
 
     const total = await PropertyModel.countDocuments(combinedQuery);
 
-    const paginationMeta = calcPaginationMeta(
-      total,
-      validatedParams.page,
-      validatedParams.limit
-    );
+    const paginationMeta = calcPaginationMeta(total, query.page, query.limit);
 
     const appliedFilters = Object.fromEntries(
       Object.entries({
-        status: validatedParams.status,
-        type: validatedParams.type,
-        size: validatedParams.size,
-        bedrooms: validatedParams.bedrooms,
-        bathrooms: validatedParams.bathrooms,
-        min_price: validatedParams.min_price,
-        max_price: validatedParams.max_price,
-        search: validatedParams.keyword,
+        status: query.status,
+        category: query.category,
+        size: query.size,
+        bedrooms: query.bedrooms,
+        bathrooms: query.bathrooms,
+        min_price: query.min_price,
+        max_price: query.max_price,
+        search: query.keyword,
         sort: {
-          field: validatedParams.sortBy,
-          order: validatedParams.sortOrder,
+          field: query.sortBy,
+          order: query.sortOrder,
         },
       }).filter(([_, v]) => v !== undefined)
     );
@@ -214,12 +183,12 @@ export const getAllProperties = async (validatedParams, user = null) => {
 };
 
 //get a single property
-export const getProperty = async (id) => {
+export const getProperty = async (query) => {
   try {
-    const property = await PropertyModel.findById(id);
+    const property = await PropertyModel.findOne(query);
 
     if (!property) {
-      throw new AppError(`Property with ID: ${id} not found`, 404);
+      throw new AppError(`Property with ID: ${query._id} not found`, 404);
     }
 
     return property;
@@ -229,21 +198,79 @@ export const getProperty = async (id) => {
   }
 };
 
-//update property
-export const updateProperty = async (id, data, files) => {
+//fxn to validate index type
+const validateImageIndex = (index, arrayLength, operation = "operation") => {
+  const idx = parseInt(index);
+  if (isNaN(idx) || idx < 0 || idx >= arrayLength) {
+    throw new AppError(`Invalid image index for ${operation}: ${index}`, 400);
+  }
+  return idx;
+};
 
+//fxn to split image files for replace and append
+const splitImagesFiles = (imageFiles, replaceIndexes = []) => {
+  const replaceCount = replaceIndexes.length;
+  const replaceImages = imageFiles.slice(0, replaceCount);
+  const appendImages = imageFiles.slice(replaceCount);
+
+  return { replaceImages, appendImages };
+};
+
+//replace image(s) fxn
+const applyReplaceImages = async (
+  imagesToSave,
+  replaceImages,
+  replaceIndexes,
+  publicIdBase
+) => {
+  for (let i = 0; i < replaceIndexes.length; i++) {
+    const index = replaceIndexes[i];
+    validateImageIndex(index, imagesToSave.length, "replace");
+
+    const oldImage = imagesToSave[index];
+
+    imagesToSave[index] = await handleImageUpdate(
+      replaceImages[i],
+      oldImage,
+      publicIdBase,
+      index
+    );
+  }
+
+  return imagesToSave;
+};
+
+//append image(s) fxn
+const applyAppendImages = async (imagesToSave, appendImages, publicIdBase) => {
+  const startIndex = imagesToSave.length;
+
+  const newImages = await Promise.allSettled(
+    appendImages.map((file, idx) =>
+      handleImageAppend(file, publicIdBase, startIndex + idx)
+    )
+  );
+
+  const successfulAppends = newImages
+    .filter((res) => res.status === "fulfilled" && res.value)
+    .map((res) => res.value);
+
+  return [...imagesToSave, ...successfulAppends];
+};
+
+//update property
+export const updateProperty = async (query, data, files) => {
   const imageFiles = Array.isArray(files) ? files.filter(Boolean) : [];
 
   const session = await mongoose.startSession();
   session.startTransaction();
 
-  // const uploadedPublicIds = []; // track any images to clean up on failure
-
   const { replaceIndex, deleteIndex, append, action, ...updateData } = data;
 
   try {
     //retrieve property from db
-    const existingProperty = await PropertyModel.findById(id).session(session);
+    const existingProperty = await PropertyModel.findOne(query).session(
+      session
+    );
     if (!existingProperty) throw new AppError("Property not found", 404);
 
     if (updateData.title) {
@@ -299,78 +326,56 @@ export const updateProperty = async (id, data, files) => {
       }
     }
 
-    //handle replace - replace images at index(es)
+    //handle replace and append - replace and append images at index(es)
     const replaceIndexes = Array.isArray(replaceIndex)
-      ? replaceIndex.map((i) => parseInt(i)).filter((i) => !isNaN(i))
+      ? replaceIndex.map(Number).filter((i) => !isNaN(i))
       : [replaceIndex]
-          .filter((i) => i !== undefined)
-          .map((i) => parseInt(i))
+          .filter(Boolean)
+          .map(Number)
           .filter((i) => !isNaN(i));
 
-    //replace one or more images at specified indexes
-    if (
-      replaceIndexes.length > 0 &&
-      imageFiles.length === replaceIndexes.length
+    const { replaceImages, appendImages } = splitImagesFiles(
+      imageFiles,
+      replaceIndexes
+    );
+
+    //validate if replaceImages are enough
+    if ( replaceIndexes.length > 0 && replaceImages.length < replaceIndexes.length
     ) {
-      for (let i = 0; i < replaceIndexes.length; i++) {
-        const index = replaceIndexes[i];
+      throw new AppError("Not enough images for the given replaceIndex", 400);
+    }
 
-        validateImageIndex(index, imagesToSave.length, "replace");
+    //more images than replaceIndexes when append is not enabled
+    if ( replaceIndexes.length > 0 && replaceImages.length < imageFiles.length && !(append === "true" || append === true)
+    ) {
+      throw new AppError("Extra image(s) provided but append not enabled. Set `append = true` to append.", 400);
+    }
 
-        const oldImage = imagesToSave[index];
-
-        //replace with new image using original public ID base
-        try {
-          imagesToSave[index] = await handleImageUpdate(
-            imageFiles[i],
-            oldImage,
-            publicIdBase,
-            index
-            // uploadedPublicIds
-          );
-        } catch (error) {
-          await cleanupTempUploads(imageFiles);
-          throw new AppError("Image update failed", 500);
-        }
+    //replace existing images
+    if (replaceIndexes.length > 0) {
+      try {
+        imagesToSave = await applyReplaceImages(
+          imagesToSave,
+          replaceImages,
+          replaceIndexes,
+          publicIdBase
+        );
+      } catch (error) {
+        throw new AppError("Failed to replace images", 500);
       }
+    }
 
-      //throw error if replaceindexes is not equal to uploaded files
-    } else if (
-      replaceIndexes.length > 0 &&
-      imageFiles.length !== replaceIndexes.length
-    ) {
-      console.log("Image file index mismatch detected. Cleaning up...");
-
-      //delete all uploaded images from Cloudinary
-      await cleanupTempUploads(imageFiles);
-
-      throw new AppError(
-        "replaceIndex count must match number of uploaded image files",
-        400
+    //append new images
+    if (appendImages.length > 0 && (append === "true" || append === true)) {
+      imagesToSave = await applyAppendImages(
+        imagesToSave,
+        appendImages,
+        publicIdBase
       );
+    }
 
-      //append new images without replacing or deleting any
-    } else if (append === "true" || append === true) {
-      const startIndex = imagesToSave.length;
-      const newImages = await Promise.allSettled(
-        imageFiles.map((file, idx) =>
-          handleImageAppend(
-            file,
-            publicIdBase,
-            startIndex + idx
-            // uploadedPublicIds
-          )
-        )
-      );
-
-      const successfulAppends = newImages
-        .filter((result) => result.status === "fulfilled" && result.value)
-        .map((result) => result.value);
-
-      imagesToSave = [...imagesToSave, ...successfulAppends];
-
-      //replace all images if replaceindex, append, deleteindex were not provided and image files are present
-    } else if (!replaceIndex && !append && imageFiles.length > 0) {
+    //replace all images if replaceindex, append, deleteindex were not provided and image files are present
+    if (!replaceIndex && !append && imageFiles.length > 0) {
       //replace all images
       for (const img of imagesToSave) {
         if (img.publicId) {
@@ -380,12 +385,7 @@ export const updateProperty = async (id, data, files) => {
 
       const newImages = await Promise.allSettled(
         imageFiles.map((file, index) =>
-          processImageUpload(
-            file,
-            publicIdBase,
-            index
-            // uploadedPublicIds
-          )
+          processImageUpload(file, publicIdBase, index)
         )
       );
 
@@ -402,8 +402,8 @@ export const updateProperty = async (id, data, files) => {
     //save updated property
     updateData.images = imagesToSave;
 
-    const updatedProperty = await PropertyModel.findByIdAndUpdate(
-      id,
+    const updatedProperty = await PropertyModel.findOneAndUpdate(
+      query,
       updateData,
       {
         new: true,
@@ -412,34 +412,25 @@ export const updateProperty = async (id, data, files) => {
     );
 
     await session.commitTransaction();
-    session.endSession();
 
     return updatedProperty;
   } catch (error) {
     await session.abortTransaction();
-    session.endSession();
 
     await cleanupTempUploads(imageFiles);
 
-    // //rollback all newly uploaded images
-    // if (uploadedPublicIds.length > 0) {
-    //   await Promise.allSettled(
-    //     uploadedPublicIds.map((publicId) =>
-    //       deleteImage(publicId).catch(console.error)
-    //     )
-    //   );
-    // }
-
     console.error("Update property error:", error);
     throw error;
+  } finally {
+    session.endSession();
   }
 };
 
 //update property status
-export const updatePropStatus = async (id) => {
+export const updatePropStatus = async (query) => {
   try {
     //retrieve property from db
-    const existingProperty = await PropertyModel.findById(id);
+    const existingProperty = await PropertyModel.findOne(query);
     if (!existingProperty) throw new AppError("Property not found", 404);
 
     //update status
@@ -453,8 +444,8 @@ export const updatePropStatus = async (id) => {
       throw new AppError("Status cannot be toggled", 400);
     }
 
-    const updatedStatus = await PropertyModel.findByIdAndUpdate(
-      id,
+    const updatedStatus = await PropertyModel.findOneAndUpdate(
+      query,
       { status: newStatus },
       { new: true }
     );
@@ -467,12 +458,12 @@ export const updatePropStatus = async (id) => {
 };
 
 //delete property
-export const deleteProperty = async (id) => {
+export const deleteProperty = async (query) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
     //retrieve property from db
-    const existingProperty = await PropertyModel.findById(id).session(session);
+    const existingProperty = await PropertyModel.findOne(query).session(session);
     if (!existingProperty) throw new AppError("Property not found", 404);
 
     //extract publicIds from the images array if not empty
@@ -483,17 +474,11 @@ export const deleteProperty = async (id) => {
     //delete cloudinary images first
     if (publicIds.length > 0) {
       try {
-        // for (const publicId of publicIds) {
-        //   await deleteImage(publicId);
-        // }
         const deletionPromises = publicIds.map((publicId) =>
           deleteImage(publicId)
         );
         await Promise.allSettled(deletionPromises);
       } catch (cloudError) {
-        await session.abortTransaction();
-        session.endSession();
-        console.error("Cloudinary error:", cloudError.message);
         throw new AppError(
           "Image deletion failed. Deletion was rolled back.",
           500
@@ -501,19 +486,19 @@ export const deleteProperty = async (id) => {
       }
     }
 
-    const deletedProperty = await PropertyModel.findByIdAndDelete(id).session(
-      session
-    );
+    const deletedProperty = await PropertyModel.findOneAndDelete(query).session( session );
+
     if (!deletedProperty) throw new AppError("Property deletion failed", 500);
 
     await session.commitTransaction();
-    session.endSession();
 
     return deletedProperty;
   } catch (error) {
     await session.abortTransaction();
-    session.endSession();
+ 
     console.error("Property deletion error:", error);
     throw error;
+  } finally {
+    session.endSession();
   }
 };

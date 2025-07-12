@@ -25,8 +25,8 @@ const buildFilterQuery = (params, user = null) => {
     };
   }
   
-  //update query object with type filter
-  if (params.type) query.type = params.type;
+  // //update query object with type filter
+  // if (params.type) query.type = params.type;
 
   //update query object with type filter
   if (params.size) query.size = params.size;

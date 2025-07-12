@@ -1,7 +1,12 @@
 import mongoose from "mongoose";
 import BlogPostModel from "../models/blogPost.model.js";
 import { ACTIONS, STATUS, USER_TYPES } from "../configs/constants.config.js";
-import { intelligentTitleCase, normalizeTitle,  buildSearchQuery,  calcPaginationMeta, } from "../utils/utils.js";
+import {
+  intelligentTitleCase,
+  normalizeTitle,
+  buildSearchQuery,
+  calcPaginationMeta,
+} from "../utils/utils.js";
 import {
   createSlug,
   calcReadTime,
@@ -55,9 +60,14 @@ export const createPost = async (data, file) => {
     postData.titleLower = normalizeTitle(postData.title);
 
     //check for duplicate title using titlelower before creating post
-    const exists = await BlogPostModel.findOne({ titleLower: postData.titleLower }).session(session);
+    const exists = await BlogPostModel.findOne({
+      titleLower: postData.titleLower,
+    }).session(session);
     if (exists) {
-      throw new AppError( "A similar post title already exists. Please use a different title", 409 );
+      throw new AppError(
+        "A similar post title already exists. Please use a different title",
+        409
+      );
     }
 
     //always append ellipsis to excerpt if not already present
@@ -137,10 +147,7 @@ export const getAllPosts = async (query, user = null) => {
       ...searchQuery,
     };
 
-    const sortOptions = buildSortOptions(
-      query.sortBy,
-      query.sortOrder
-    );
+    const sortOptions = buildSortOptions(query.sortBy, query.sortOrder);
 
     const skip = (query.page - 1) * query.limit;
 
@@ -148,9 +155,7 @@ export const getAllPosts = async (query, user = null) => {
       ? { score: { $meta: "textScore" }, ...sortOptions }
       : sortOptions;
 
-    const projection = query.keyword
-      ? { score: { $meta: "textScore" } }
-      : {};
+    const projection = query.keyword ? { score: { $meta: "textScore" } } : {};
 
     const blogPosts = await BlogPostModel.find(combinedQuery, projection)
       .sort(sort)
@@ -158,13 +163,13 @@ export const getAllPosts = async (query, user = null) => {
       .limit(query.limit)
       .lean({ virtuals: true });
 
+    if (blogPosts.length === 0) {
+      throw new AppError("No blog posts found!", 404);
+    }
+
     const total = await BlogPostModel.countDocuments(combinedQuery);
 
-    const paginationMeta = calcPaginationMeta(
-      total,
-      query.page,
-      query.limit
-    );
+    const paginationMeta = calcPaginationMeta(total, query.page, query.limit);
 
     return {
       blogPosts,
@@ -192,7 +197,7 @@ export const getPost = async (query, user = null) => {
     console.log("Query", query);
 
     if (!blogPost) {
-      throw new AppError("Blog post not found", 404)
+      throw new AppError("Blog post not found", 404);
     }
 
     //exclude draft/unpublished posts for unauthenticated users
@@ -283,10 +288,7 @@ export const updatePost = async (query, updateData, file) => {
           0
         );
       } catch (imageError) {
-        throw new AppError(
-          "Image update failed. Rollback activated.",
-          500
-        );
+        throw new AppError("Image update failed. Rollback activated.", 500);
       }
     }
 
@@ -338,11 +340,8 @@ export const deletePost = async (query) => {
     if (publicId) {
       try {
         await deleteImage(publicId);
-      } catch (cloudError) {      
-        throw new AppError(
-          "Image deletion failed. Rollback activated.",
-          500
-        );
+      } catch (cloudError) {
+        throw new AppError("Image deletion failed. Rollback activated.", 500);
       }
     }
 
